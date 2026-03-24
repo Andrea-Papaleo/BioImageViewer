@@ -144,7 +144,7 @@ export interface IDataPipelineService {
   ): Promise<PipelineResult>;
   // Analysis (for UI decisions)
   analyzeFiles(files: FileList): Promise<FileAnalysisResult[]>;
-  // useGeoTIFF(files:FileList)
+
   // Progress and cancellation
   onProgress(callback: (progress: Progress) => void): () => void;
   cancel(): void;

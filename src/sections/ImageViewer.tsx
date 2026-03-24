@@ -1,6 +1,6 @@
 import { useRenderedSrc } from "@/hooks";
-import { selectChannels, selectImages, selectPlanes } from "@/state/selectors";
-import React, { useEffect, useMemo } from "react";
+import { selectChannels, selectPlanes } from "@/state/selectors";
+import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
 const ImageViewer = ({ activeId }: { activeId: string | undefined }) => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image as IJSImage, encodeDataURL, decode } from "image-js";
+import { Image as IJSImage, encodeDataURL } from "image-js";
 import { StorageService } from "@/services/StorageService";
 import type { StoredItemReference } from "@/services/StorageService";
 import type { ChannelColor } from "@/state/types";

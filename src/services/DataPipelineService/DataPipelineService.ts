@@ -443,8 +443,6 @@ export class DataPipelineService implements IDataPipelineService {
     }
   }
 
-  useGeoTIFF(files: FileList): void {}
-
   // ============================================================
   // PUBLIC -- END
   // ============================================================
