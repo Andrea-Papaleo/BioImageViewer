@@ -14,7 +14,13 @@ import type {
   ChannelStorageInput,
   StoredChannelData,
 } from "./types";
-import { DB_NAME, DB_VERSION, STORES, type StoreName } from "../../types";
+import {
+  DB_NAME,
+  DB_VERSION,
+  STORES,
+  type ShapeArray,
+  type StoreName,
+} from "../../types";
 import type { ChannelColor } from "@/state/types";
 
 const DEFAULT_CACHE_OPTIONS: CacheOptions = {
@@ -326,7 +332,7 @@ export class StorageService implements IStorageService {
 
     const { buffer, dtype, width, height } = result.data;
 
-    const shape: [number, number, number, number] = [1, height, width, 1];
+    const shape: ShapeArray = [1, height, width, 1];
     // Create typed array view and determine TF.js dtype
     // TF.js only supports: "float32" | "int32" | "bool" | "complex64" | "string"
     // We map our storage dtype to TF.js compatible dtype

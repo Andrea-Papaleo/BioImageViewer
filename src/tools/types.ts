@@ -1,6 +1,6 @@
 import type { TiffImportConfig } from "@/services/DataPipelineService/types";
 import type { Channel, ImageObject, ImageSeries, Plane } from "@/state/types";
-import type { BitDepth, ColorsRaw } from "@/types";
+import type { BitDepth, ColorsRaw, ShapeArray } from "@/types";
 
 export enum ImageShapeEnum {
   DicomImage,
@@ -42,7 +42,7 @@ export type LoadAndPrepareOutput = {
     // For IndexedDB storage
     buffer: ArrayBuffer;
     dtype: "float32" | "int32" | "uint8";
-    shape: [number, number, number, number];
+    shape: ShapeArray;
     preparedChannels: {
       data: number[][];
       histograms?: number[][];

@@ -21,6 +21,7 @@ export type Shape = {
   width: number;
   channels: number;
 };
+export type ShapeArray = [number, number, number, number];
 
 type ColorsMeta = {
   range: { [channel: number]: [number, number] };

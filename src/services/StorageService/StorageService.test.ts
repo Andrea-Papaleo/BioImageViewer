@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { StorageService } from "./StorageService";
-import { STORES } from "../../types";
+import { STORES, type ShapeArray } from "../../types";
 
 // Note: These tests require IndexedDB support
 // Vitest with happy-dom should provide this
@@ -79,7 +79,7 @@ describe("TensorStorageService", () => {
           data: {
             buffer: new Float32Array([1, 2]).buffer,
             dtype: "float32" as const,
-            shape: [1, 1, 1, 2] as [number, number, number, number],
+            shape: [1, 1, 1, 2] as ShapeArray,
           },
           storeName: STORES.IMAGE_DATA,
         },
@@ -88,7 +88,7 @@ describe("TensorStorageService", () => {
           data: {
             buffer: new Float32Array([3, 4]).buffer,
             dtype: "float32" as const,
-            shape: [1, 1, 1, 2] as [number, number, number, number],
+            shape: [1, 1, 1, 2] as ShapeArray,
           },
           storeName: STORES.IMAGE_DATA,
         },

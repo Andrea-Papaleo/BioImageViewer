@@ -8,6 +8,7 @@ import type { StoredItemReference } from "../StorageService/types";
 import type { DimensionOrder, OMEDims } from "../../tools/TiffReader/types";
 import type { Progress, TaskError } from "../types";
 import type { ImageSeriesResult } from "@/tools/types";
+import type { ShapeArray } from "@/types";
 
 // ============================================================
 // Pipeline Status & Progress
@@ -102,7 +103,7 @@ export type PreparedImageData = {
     id: string;
     buffer: ArrayBuffer;
     dtype: "float32" | "int32" | "uint8";
-    shape: [number, number, number, number];
+    shape: ShapeArray;
     preparedChannels: {
       data: number[][];
       histograms?: number[][];
