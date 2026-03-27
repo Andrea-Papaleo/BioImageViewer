@@ -1,21 +1,21 @@
 import { createEntityAdapter, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import type {
-  AppState,
-  Channel,
-  Experiment,
-  ImageMetadata,
-  ImageObject,
-  ImageSeries,
-  Plane,
+import {
+  type ChannelMeta,
+  type AppState,
+  type Channel,
+  type Experiment,
+  type ImageObject,
+  type ImageSeries,
+  type Plane,
 } from "./types";
 
 export const experimentAdapter = createEntityAdapter<Experiment>();
 export const imageSeriesAdapter = createEntityAdapter<ImageSeries>();
-export const metadataAdapter = createEntityAdapter<ImageMetadata>();
 export const imageAdapter = createEntityAdapter<ImageObject>();
 export const planeAdapter = createEntityAdapter<Plane>();
 export const channelAdapter = createEntityAdapter<Channel>();
+export const channelMetaAdapter = createEntityAdapter<ChannelMeta>();
 
 const initialState: AppState = {
   images: imageAdapter.getInitialState(),
@@ -23,6 +23,7 @@ const initialState: AppState = {
   imageSeries: imageSeriesAdapter.getInitialState(),
   planes: planeAdapter.getInitialState(),
   channels: channelAdapter.getInitialState(),
+  channelMetas: channelMetaAdapter.getInitialState(),
   activeImageId: undefined,
   activePlaneId: undefined,
   activeChannelIds: [],
@@ -42,16 +43,24 @@ export const appSlice = createSlice({
         imageSeries: Array<ImageSeries>;
         planes: Array<Plane>;
         channels: Array<Channel>;
+        channelMetas: Array<ChannelMeta>;
       }>,
     ) {
-      const { experiments, imageSeries, images, planes, channels } =
-        action.payload;
+      const {
+        experiments,
+        imageSeries,
+        images,
+        planes,
+        channels,
+        channelMetas,
+      } = action.payload;
 
       experimentAdapter.addMany(state.experiments, experiments);
       imageSeriesAdapter.addMany(state.imageSeries, imageSeries);
       imageAdapter.addMany(state.images, images);
       planeAdapter.addMany(state.planes, planes);
       channelAdapter.addMany(state.channels, channels);
+      channelMetaAdapter.addMany(state.channelMetas, channelMetas);
       state.activeImageId = images[0].id;
     },
     addExperiment(
@@ -104,43 +113,26 @@ export const appSlice = createSlice({
     setActiveChannelIds(state, action: PayloadAction<string[]>) {
       state.activeChannelIds = action.payload;
     },
-    setChannelVisibility(
-      state,
-      action: PayloadAction<{ id: string; visible: boolean }>,
-    ) {
-      const { id, visible } = action.payload;
-      channelAdapter.updateOne(state.channels, { id, changes: { visible } });
-    },
-    setChannelColorRange(
+
+    updateChannelMeta(
       state,
       action: PayloadAction<{
         id: string;
-        range: { min: number; max: number };
+        changes: Partial<
+          Pick<
+            ChannelMeta,
+            | "visible"
+            | "colorMap"
+            | "rampMin"
+            | "rampMax"
+            | "rampMinLimit"
+            | "rampMaxLimit"
+          >
+        >;
       }>,
     ) {
-      const { id, range } = action.payload;
-      const channel = state.channels.entities[id];
-      const changes = {
-        color: { ...channel.color, min: range.min, max: range.max },
-      };
-      channelAdapter.updateOne(state.channels, {
-        id,
-        changes,
-      });
-    },
-    setChannelColorMap(
-      state,
-      action: PayloadAction<{ id: string; map: [number, number, number] }>,
-    ) {
-      const { id, map } = action.payload;
-      const channel = state.channels.entities[id];
-      const changes = {
-        color: { ...channel.color, map },
-      };
-      channelAdapter.updateOne(state.channels, {
-        id,
-        changes,
-      });
+      const { id, changes } = action.payload;
+      channelMetaAdapter.updateOne(state.channelMetas, { id, changes });
     },
   },
 });

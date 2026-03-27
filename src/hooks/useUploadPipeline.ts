@@ -29,7 +29,7 @@ export function useUploadPipeline(): UseUploadPipelineReturn {
   const dispatch = useDispatch();
   const pipeline = useDataPipeline();
   const [isUploading, setIsUploading] = useState(false);
-  const [errors, setErrors] = useState<string>();
+  const [, setErrors] = useState<string>();
 
   const upload = useCallback(
     async (
@@ -53,7 +53,8 @@ export function useUploadPipeline(): UseUploadPipelineReturn {
           return result;
         }
 
-        const { imageSeries, images, planes, channels } = result.images[0];
+        const { imageSeries, images, planes, channels, channelMetas } =
+          result.images[0];
 
         const experiment: Experiment = {
           id: crypto.randomUUID(),
@@ -73,6 +74,7 @@ export function useUploadPipeline(): UseUploadPipelineReturn {
             images,
             planes,
             channels,
+            channelMetas,
           }),
         );
 

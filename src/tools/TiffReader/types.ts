@@ -70,6 +70,5 @@ export type OMEDims = {
  * Used for dependency injection and mocking in tests.
  */
 export interface ITiffReader {
-  analyze(buffer: ArrayBuffer): AnalyzeTiffOutput;
-  analyzeGeoTiff(buffer: ArrayBuffer): void;
+  analyze(buffer: ArrayBuffer): void;
 }

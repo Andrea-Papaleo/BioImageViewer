@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Image as IJSImage, encodeDataURL } from "image-js";
 import { StorageService } from "@/services/StorageService";
-import type { StoredItemReference } from "@/services/StorageService";
-import type { ChannelColor } from "@/state/types";
 
-type EntityWithOptionalRef = {
-  id: string;
-  storageReference: StoredItemReference;
-  color: ChannelColor;
+import { createLUT } from "@/utils";
+import type { Channel, ColorMap } from "@/state/types";
+
+export type ChannelWithColors = Channel & {
+  colorMap: ColorMap;
+  rampMin: number;
+  rampMax: number;
 };
 
 /**
@@ -16,7 +17,7 @@ type EntityWithOptionalRef = {
  * - Legacy path: returns entity.src directly
  * - New pipeline: loads renderedSrc from IndexedDB StoredTensorData
  */
-export function useRenderedSrc(entity: EntityWithOptionalRef[]): {
+export function useRenderedSrc(channels: ChannelWithColors[]): {
   src: string;
   loading: boolean;
 } {
@@ -24,7 +25,7 @@ export function useRenderedSrc(entity: EntityWithOptionalRef[]): {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (entity.length === 0) {
+    if (channels.length === 0) {
       setIndexedDBSrc("");
       setLoading(false);
       return;
@@ -37,37 +38,33 @@ export function useRenderedSrc(entity: EntityWithOptionalRef[]): {
       try {
         const storage = StorageService.getInstance();
         const result = await storage.retrieveBatch(
-          entity.map((e) => ({
+          channels.map((e) => ({
             id: e.storageReference.storageId,
             storeName: e.storageReference.storeName,
           })),
         );
         if (!cancelled && result.success) {
           const { width, height, bitDepth } = result.data.get(
-            entity[0].storageReference.storageId,
+            channels[0].storageReference.storageId,
           )!;
-          const maxIntensity = 2 ** bitDepth;
+
           const pixelCount = width * height;
           const rgbBuffer = new Uint8Array(pixelCount * 3);
 
           const luts = [...result.data.values()].map(({ buffer }, idx) => {
-            const color = entity[idx].color;
+            const { rampMin, rampMax, colorMap } = channels[idx];
+            const lut = createLUT({
+              bitDepth,
+              colorMap,
+              min: rampMin,
+              max: rampMax,
+            });
             return {
-              buffer: new Uint8Array(buffer),
-              lut: color.map.map((w) =>
-                Uint8Array.from({ length: maxIntensity }, (_, v) => {
-                  const min = color.min * maxIntensity;
-                  const max = color.max * maxIntensity;
-                  const ramped = Math.max(
-                    0,
-                    Math.min(
-                      maxIntensity,
-                      ((v - min) / (max - min)) * maxIntensity,
-                    ),
-                  );
-                  return Math.min(maxIntensity, Math.round(ramped * w));
-                }),
-              ),
+              buffer:
+                bitDepth === 8
+                  ? new Uint8Array(buffer)
+                  : new Uint16Array(buffer),
+              lut,
             };
           });
           for (let i = 0; i < pixelCount; i++) {
@@ -77,6 +74,7 @@ export function useRenderedSrc(entity: EntityWithOptionalRef[]): {
 
             for (const { buffer, lut } of luts) {
               const v = buffer[i];
+
               r += lut[0][v];
               g += lut[1][v];
               b += lut[2][v];
@@ -88,7 +86,6 @@ export function useRenderedSrc(entity: EntityWithOptionalRef[]): {
           }
           const colorImage = new IJSImage(width, height, {
             data: rgbBuffer,
-            bitDepth,
           });
           const url = encodeDataURL(colorImage);
           setIndexedDBSrc(url);
@@ -105,7 +102,7 @@ export function useRenderedSrc(entity: EntityWithOptionalRef[]): {
     return () => {
       cancelled = true;
     };
-  }, [entity]);
+  }, [channels]);
 
   return { src: indexedDBSrc, loading };
 }

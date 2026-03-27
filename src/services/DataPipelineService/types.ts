@@ -1,14 +1,12 @@
 import type {
   Channel,
-  ImageMetadata,
+  ChannelMeta,
   ImageObject,
   Plane,
 } from "../../state/types";
-import type { StoredItemReference } from "../StorageService/types";
 import type { DimensionOrder, OMEDims } from "../../tools/TiffReader/types";
 import type { Progress, TaskError } from "../types";
 import type { ImageSeriesResult } from "@/tools/types";
-import type { ShapeArray } from "@/types";
 
 // ============================================================
 // Pipeline Status & Progress
@@ -63,6 +61,7 @@ export type PipelineImageResult = {
   images: ImageObject[];
   planes: Plane[];
   channels: Channel[];
+  channelMetas: ChannelMeta[];
 };
 
 export type PipelineResult = {
@@ -78,38 +77,6 @@ export type PipelineResult = {
     totalBytes: number;
     preparationTimeMs: number;
   };
-};
-
-// ============================================================
-// Prepared Data (output from workers)
-// ============================================================
-
-export type PreparedImageData = {
-  // Metadata for Redux
-  metadata: Omit<ImageMetadata, "imageDataIds" | "defaultImageId"> & {
-    imageDataIds: string[];
-    defaultImageId: string;
-  };
-
-  // Image objects for Redux (without Tensor4D)
-  images: Array<
-    Omit<ImageObject, "data"> & {
-      tensorRef: StoredItemReference;
-    }
-  >;
-
-  // Raw data for IndexedDB (one per image)
-  data: Array<{
-    id: string;
-    buffer: ArrayBuffer;
-    dtype: "float32" | "int32" | "uint8";
-    shape: ShapeArray;
-    preparedChannels: {
-      data: number[][];
-      histograms?: number[][];
-    };
-    renderedSrc: string;
-  }>;
 };
 
 // ============================================================

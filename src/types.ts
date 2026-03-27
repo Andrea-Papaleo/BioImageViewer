@@ -13,6 +13,14 @@ export const STORES = {
 
 export type StoreName = (typeof STORES)[keyof typeof STORES];
 
+export const DTYPES = {
+  UINT8: "uint8",
+  INT32: "int32",
+  FLOAT32: "float32",
+} as const;
+
+export type DType = (typeof DTYPES)[keyof typeof DTYPES];
+
 export type BitDepth = IJSBitDepth;
 export type DataArray = Uint8Array | Uint16Array | Float32Array;
 export type Shape = {
@@ -40,6 +48,6 @@ export type StorageReference = {
   storeName: StoreName;
   width: number;
   height: number;
-  dtype: "float32" | "int32" | "uint8";
+  dtype: DType;
   byteSize: number;
 };

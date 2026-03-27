@@ -1,6 +1,12 @@
 import type { TiffImportConfig } from "@/services/DataPipelineService/types";
-import type { Channel, ImageObject, ImageSeries, Plane } from "@/state/types";
-import type { BitDepth, ColorsRaw, ShapeArray } from "@/types";
+import type {
+  Channel,
+  ChannelMeta,
+  ImageObject,
+  ImageSeries,
+  Plane,
+} from "@/state/types";
+import type { BitDepth } from "@/types";
 
 export enum ImageShapeEnum {
   DicomImage,
@@ -36,25 +42,9 @@ export type ChannelResult = Omit<Channel, "storageReference"> & {
   histogram: ArrayBuffer;
 };
 export type LoadAndPrepareOutput = {
-  old: Array<{
-    id: string;
-
-    // For IndexedDB storage
-    buffer: ArrayBuffer;
-    dtype: "float32" | "int32" | "uint8";
-    shape: ShapeArray;
-    preparedChannels: {
-      data: number[][];
-      histograms?: number[][];
-    };
-    renderedSrc: string;
-
-    // For Redux metadata
-    bitDepth: BitDepth;
-    colors: ColorsRaw;
-  }>;
   imageSeries: ImageSeriesResult[];
   images: ImageResult[];
   planes: Plane[];
   channels: ChannelResult[];
+  channelMetas: ChannelMeta[];
 };

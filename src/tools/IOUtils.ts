@@ -11,11 +11,12 @@ import { DEFAULT_COLORS } from "@/utils";
 import type { CancelToken } from "@/services/WorkerScheduler/types";
 import type { AnalyzeTiffInput, AnalyzeTiffOutput } from "./TiffReader/types";
 
-import type { Plane } from "@/state/types";
+import type { ChannelMeta, Plane } from "@/state/types";
 import {
   extractImageDimensionsFromStack,
   loadImageFromBuffer,
 } from "./imageHelpers";
+import { findBestFitBins } from "./histogram/stolen";
 
 export async function loadAndPrepare(
   input: LoadAndPrepareInput,
@@ -43,6 +44,7 @@ export async function loadAndPrepare(
   const images: ImageResult[] = [];
   const planes: Plane[] = [];
   const channels: ChannelResult[] = [];
+  const channelMetas: ChannelMeta[] = [];
 
   const shape = {
     planes: input.dimSpec.slices,
@@ -51,19 +53,40 @@ export async function loadAndPrepare(
     height: stack.getImage(0).height,
   };
   const bitDepth = stack.bitDepth;
+  const name = input.fileName.split(".")[0];
   const series: ImageSeriesResult = {
     id: crypto.randomUUID(),
-    name: `series-${0}`,
+    name: `${name}-series`,
     bitDepth,
     shape,
     timeSeries: false,
     imageIds: [],
+    channels: [],
   };
+  const channelMeta: ChannelMeta[] = Array.from(
+    { length: input.dimSpec.channels },
+    (_v, idx) => ({
+      id: crypto.randomUUID(),
+      name: `Channel-${idx}`,
+      bitDepth,
+      seriesId: series.id,
+      colorMap: DEFAULT_COLORS[idx % 6],
+      minValue: 2 ** bitDepth - 1,
+      maxValue: 0,
+      rampMinLimit: 2 ** bitDepth - 1,
+      rampMaxLimit: 0,
+      rampMin: 2 ** bitDepth - 1,
+      rampMax: 0,
+      visible: true,
+    }),
+  );
+  series.channels = channelMeta.map((chM) => chM.id);
+  channelMetas.push(...channelMeta);
 
   imageSeriesMap.forEach((imageMap, imageIDX) => {
     const image: ImageResult = {
       id: crypto.randomUUID(),
-      name: `image-${imageIDX}`,
+      name: `${name}-${imageIDX}`,
       seriesId: series.id,
       shape,
       categoryId: "cat",
@@ -72,6 +95,7 @@ export async function loadAndPrepare(
       timepoint: series.timeSeries ? imageIDX : 0,
       bitDepth,
     };
+
     series.imageIds.push(image.id);
     imageMap.forEach((planeMap, planeIDX) => {
       const plane: Plane = {
@@ -83,19 +107,36 @@ export async function loadAndPrepare(
       image.planeIds.push(plane.id);
       planeMap.forEach((channel, channelIDX) => {
         const histogram = channel.histogram().buffer as ArrayBuffer;
-        const data = new Uint8Array(channel.getRawImage().data)
-          .buffer as ArrayBuffer;
+        const [histMin, histMax] = findBestFitBins(
+          histogram,
+          channel.width * channel.height,
+        );
+        const { min: mins, max: maxes } = channel.minMax();
+        const minValue = mins[0];
+        const maxValue = maxes[0];
+        const min = histMin;
+        const max = histMax;
+        const meta = channelMeta[channelIDX];
+        if (minValue < meta.minValue) {
+          meta.minValue = minValue;
+          meta.rampMinLimit = minValue;
+        }
+        if (maxValue > meta.maxValue) {
+          meta.maxValue = maxValue;
+          meta.rampMaxLimit = maxValue;
+        }
+        if (planeIDX === input.dimSpec.slices / 2) {
+          meta.rampMin = min;
+          meta.rampMax = max;
+        }
+
+        const data = channel.getRawImage().data.buffer as ArrayBuffer;
         const channelResult: ChannelResult = {
           id: crypto.randomUUID(),
-          name: `channel-${channelIDX}`,
+          name: `Channel-${channelIDX}`,
+          channelMetaId: meta.id,
           dtype: "float32",
-          color: {
-            map: DEFAULT_COLORS[channelIDX % 6],
-            min: 0,
-            max: 1,
-          },
           planeId: plane.id,
-          visible: true,
           histogram,
           data,
           width: channel.width,
@@ -111,11 +152,9 @@ export async function loadAndPrepare(
   });
   imageSeries.push(series);
 
-  const results: Array<LoadAndPrepareOutput["old"][number]> = [];
-
   onProgress(100);
 
-  return { old: results, imageSeries, images, planes, channels };
+  return { imageSeries, images, planes, channels, channelMetas };
 }
 
 export async function analyzeTiff(
@@ -128,5 +167,5 @@ export async function analyzeTiff(
   }
   const analyzer = new TiffReader();
   //analyzer.analyze(payload.fileData);
-  return await analyzer.analyzeGeoTiff(payload.fileData);
+  return await analyzer.analyze(payload.fileData);
 }

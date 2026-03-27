@@ -4,7 +4,13 @@
  */
 
 import type { Channel, ChannelColor } from "@/state/types";
-import type { BitDepth, ColorsRaw, ShapeArray, StoreName } from "../../types";
+import type {
+  BitDepth,
+  ColorsRaw,
+  DType,
+  ShapeArray,
+  StoreName,
+} from "../../types";
 
 export type StoredItemData = {
   id: string;
@@ -12,7 +18,7 @@ export type StoredItemData = {
   buffer: ArrayBuffer;
 
   // Tensor metadata for reconstructions
-  dtype: "float32" | "int32" | "uint8";
+  dtype: DType;
   shape: ShapeArray; // [Z, H, W, C]
 
   // Byte size for cache management
@@ -33,7 +39,8 @@ export type StoredItemData = {
 export type StoredChannelData = {
   id: string;
   buffer: ArrayBuffer;
-  dtype: "float32" | "int32" | "uint8";
+  dtype: DType;
+  channelMetaId: string;
   width: number;
   height: number;
   histogram: ArrayBuffer;
@@ -73,7 +80,7 @@ export type StoredItemReference = {
   storeName: StoreName;
   width: number;
   height: number;
-  dtype: "float32" | "int32" | "uint8";
+  dtype: DType;
   byteSize: number;
 };
 
@@ -114,7 +121,7 @@ export type ChannelStorageInput = Omit<Channel, "storageReference"> & {
  */
 export type StorageInput = {
   buffer: ArrayBuffer;
-  dtype: "float32" | "int32" | "uint8";
+  dtype: DType;
   shape: ShapeArray;
   preparedChannels?: PreparedChannelData;
   renderedSrc?: string;

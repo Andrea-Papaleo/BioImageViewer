@@ -1,5 +1,5 @@
 import type { EntityState } from "@reduxjs/toolkit";
-import type { BitDepth, Shape, StorageReference } from "../types";
+import type { BitDepth, DType, Shape, StorageReference } from "../types";
 
 export type ImageMetadata = {
   id: string;
@@ -11,12 +11,6 @@ export type ImageMetadata = {
   imageDataIds: string[];
   defaultImageId: string;
 };
-export type ChannelData = {
-  channelId: string;
-  channelData?: number[];
-  histogram?: number[]; // 256 bins for 8-bit, etc.
-};
-export type ImageMeasurements = { channels: Record<string, ChannelData> };
 
 export type Experiment = { id: string; imageSeriesIds: string[] };
 export type ImageSeries = {
@@ -27,6 +21,7 @@ export type ImageSeries = {
   shape: Shape;
   imageIds: string[];
   timeSeries: boolean;
+  channels: string[];
 };
 export type ImageObject = {
   id: string;
@@ -57,6 +52,8 @@ export type ChannelMeasurements = {
   lowerQuartile?: number;
   upperQuartile?: number;
 };
+
+export type ColorMap = [number, number, number];
 export type ChannelColor = {
   map: [number, number, number];
   min: number;
@@ -65,14 +62,29 @@ export type ChannelColor = {
 export type Channel = {
   id: string;
   planeId: string;
+  channelMetaId: string;
   name: string;
-  dtype: "float32" | "int32" | "uint8";
-  color: ChannelColor;
-  visible: boolean;
+  dtype: DType;
   storageReference: StorageReference;
   bitDepth: BitDepth;
   width: number;
   height: number;
+};
+
+export type ValueLimit = { limit: number; override?: number };
+export type ChannelMeta = {
+  id: string;
+  name: string;
+  seriesId: string;
+  bitDepth: BitDepth;
+  colorMap: ColorMap;
+  visible: boolean;
+  minValue: number;
+  maxValue: number;
+  rampMin: number;
+  rampMax: number;
+  rampMinLimit: number;
+  rampMaxLimit: number;
 };
 
 export type AppState = {
@@ -81,6 +93,7 @@ export type AppState = {
   images: EntityState<ImageObject, string>;
   planes: EntityState<Plane, string>;
   channels: EntityState<Channel, string>;
+  channelMetas: EntityState<ChannelMeta, string>;
   activeImageId: string | undefined;
   activePlaneId: string | undefined;
   activeChannelIds: string[];

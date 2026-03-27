@@ -71,10 +71,11 @@ export async function loadImageFromBuffer(
   buffer: ArrayBuffer,
 ): Promise<ImageShapeInfo & { stack: IJSStack }> {
   const dataArray = new Uint8Array(buffer);
-  console.log(dataArray);
+
   const image = decodeStack(dataArray);
 
   const imageInfo = getImageInformation(image);
+  console.log(imageInfo);
   const stack = forceStack(image);
   return {
     ...imageInfo,

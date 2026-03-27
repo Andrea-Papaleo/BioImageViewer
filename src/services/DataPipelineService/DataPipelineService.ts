@@ -14,7 +14,12 @@ import type {
   TiffImportConfig,
   UploadOptionswithCallbacks,
 } from "./types.ts";
-import type { Channel, ImageObject, Plane } from "@/state/types.ts";
+import type {
+  Channel,
+  ChannelMeta,
+  ImageObject,
+  Plane,
+} from "@/state/types.ts";
 
 const INITIAL_PROGRESS: Progress = {
   stage: "idle",
@@ -252,6 +257,7 @@ export class DataPipelineService implements IDataPipelineService {
       const imageSeries: ImageSeriesResult[] = [];
       const images: ImageObject[] = [];
       const planes: Plane[] = [];
+      const channelMetas: ChannelMeta[] = [];
       this.updateProgress({
         stage: "storing",
         overallProgress: 75,
@@ -260,6 +266,7 @@ export class DataPipelineService implements IDataPipelineService {
         imageSeries.push(...result.output.imageSeries);
         images.push(...result.output.images);
         planes.push(...result.output.planes);
+        channelMetas.push(...result.output.channelMetas);
 
         result.output.channels.forEach((channel) => {
           storageItems.push({
@@ -306,18 +313,13 @@ export class DataPipelineService implements IDataPipelineService {
 
       const channelRefs = storageResult.data;
 
-      const channels: Channel[] = storageItems.map((item, idx) => ({
-        id: item.data.id,
-        name: item.data.name,
-        planeId: item.data.planeId,
-        width: item.data.width,
-        height: item.data.height,
-        bitDepth: item.data.bitDepth,
-        dtype: item.data.dtype,
-        storageReference: channelRefs[idx],
-        color: item.data.color,
-        visible: item.data.visible,
-      }));
+      const channels: Channel[] = storageItems.map((item, idx) => {
+        const { data: _data, histogram: _histogram, ...rest } = item.data;
+        return {
+          ...rest,
+          storageReference: channelRefs[idx],
+        };
+      });
 
       // Collect results — to be dispatched by the caller
       // (DataPipelineService does NOT dispatch to Redux directly;
@@ -331,7 +333,16 @@ export class DataPipelineService implements IDataPipelineService {
 
       return {
         success: true,
-        images: [{ fileName: "fuck", imageSeries, images, planes, channels }],
+        images: [
+          {
+            fileName: "fuck",
+            imageSeries,
+            images,
+            planes,
+            channels,
+            channelMetas,
+          },
+        ],
         metadataIds: [],
         errors,
         warnings:

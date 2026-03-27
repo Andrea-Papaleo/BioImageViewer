@@ -1,18 +1,27 @@
 import { useRenderedSrc } from "@/hooks";
-import { selectChannels, selectPlanes } from "@/state/selectors";
+import type { ChannelWithColors } from "@/hooks/useRenderedSrc";
+import { selectActiveChannels, selectChannelMetas } from "@/state/selectors";
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
-const ImageViewer = ({ activeId }: { activeId: string | undefined }) => {
-  const channels = useSelector(selectChannels);
-  const planes = useSelector(selectPlanes);
+const ImageViewer = () => {
+  const channelMetas = useSelector(selectChannelMetas);
+  const activeChannels = useSelector(selectActiveChannels);
 
   const displayImages = useMemo(() => {
-    if (!activeId) return [];
-    return planes[activeId].channelIds
-      .map((id) => channels[id])
-      .filter((ch) => ch.visible);
-  }, [channels, planes, activeId]);
+    const displayChannels: ChannelWithColors[] = [];
+    activeChannels.forEach((ch) => {
+      const chMeta = channelMetas[ch.channelMetaId];
+      if (chMeta.visible)
+        displayChannels.push({
+          ...ch,
+          colorMap: chMeta.colorMap,
+          rampMin: chMeta.rampMin,
+          rampMax: chMeta.rampMax,
+        });
+    });
+    return displayChannels;
+  }, [activeChannels, channelMetas]);
 
   const { src, loading } = useRenderedSrc(displayImages);
 
