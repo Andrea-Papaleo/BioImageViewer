@@ -82,6 +82,7 @@ export async function loadAndPrepare(
   );
   series.channels = channelMeta.map((chM) => chM.id);
   channelMetas.push(...channelMeta);
+  const initImagePlane = Math.floor(input.dimSpec.slices / 2);
 
   imageSeriesMap.forEach((imageMap, imageIDX) => {
     const image: ImageResult = {
@@ -90,7 +91,7 @@ export async function loadAndPrepare(
       seriesId: series.id,
       shape,
       categoryId: "cat",
-      activePlane: input.dimSpec.slices / 2,
+      activePlane: initImagePlane,
       planeIds: [],
       timepoint: series.timeSeries ? imageIDX : 0,
       bitDepth,
@@ -125,7 +126,7 @@ export async function loadAndPrepare(
           meta.maxValue = maxValue;
           meta.rampMaxLimit = maxValue;
         }
-        if (planeIDX === input.dimSpec.slices / 2) {
+        if (planeIDX === initImagePlane) {
           meta.rampMin = min;
           meta.rampMax = max;
         }
