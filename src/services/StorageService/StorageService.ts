@@ -13,6 +13,7 @@ import type {
   StoredItemReference,
   ChannelStorageInput,
   StoredChannelData,
+  StorageInput,
 } from "./types";
 import {
   DB_NAME,
@@ -135,18 +136,10 @@ export class StorageService implements IStorageService {
       const byteSize = data.data.byteLength + data.histogram.byteLength;
 
       const storedData: StoredChannelData = {
-        id,
-        buffer: data.data,
-        dtype: data.dtype,
-        channelMetaId: data.channelMetaId,
+        ...data,
         byteSize,
         createdAt: now,
         lastAccessedAt: now,
-        bitDepth: data.bitDepth,
-        color: data.color,
-        width: data.width,
-        height: data.height,
-        histogram: data.histogram,
       };
 
       // Store in IndexedDB
@@ -173,11 +166,7 @@ export class StorageService implements IStorageService {
   }
 
   async storeBatch(
-    items: Array<{
-      id: string;
-      data: ChannelStorageInput;
-      storeName: StoreName;
-    }>,
+    items: Array<StorageInput>,
   ): Promise<StorageResult<StoredItemReference[]>> {
     try {
       await this.init();
@@ -192,18 +181,10 @@ export class StorageService implements IStorageService {
         const byteSize = item.data.data.byteLength + item.data.data.byteLength;
 
         const storedData: StoredChannelData = {
-          id: item.id,
-          buffer: item.data.data,
-          dtype: item.data.dtype,
-          channelMetaId: item.data.channelMetaId,
+          ...item.data,
           byteSize,
           createdAt: now,
           lastAccessedAt: now,
-          bitDepth: item.data.bitDepth,
-          color: item.data.color,
-          width: item.data.width,
-          height: item.data.height,
-          histogram: item.data.histogram,
         };
 
         if (!byStore.has(item.storeName)) {
@@ -332,7 +313,7 @@ export class StorageService implements IStorageService {
       return null;
     }
 
-    const { buffer, dtype, width, height } = result.data;
+    const { data, dtype, width, height } = result.data;
 
     const shape: ShapeArray = [1, height, width, 1];
     // Create typed array view and determine TF.js dtype
@@ -340,16 +321,16 @@ export class StorageService implements IStorageService {
     // We map our storage dtype to TF.js compatible dtype
     switch (dtype) {
       case "float32": {
-        const typedArray = new Float32Array(buffer);
+        const typedArray = new Float32Array(data);
         return tensor4d(typedArray, shape, "float32");
       }
       case "int32": {
-        const typedArray = new Int32Array(buffer);
+        const typedArray = new Int32Array(data);
         return tensor4d(typedArray, shape, "int32");
       }
       case "uint8": {
         // uint8 stored efficiently but reconstructed as int32 for TF.js
-        const typedArray = new Uint8Array(buffer);
+        const typedArray = new Uint8Array(data);
         return tensor4d(typedArray, shape, "int32");
       }
     }
@@ -393,36 +374,6 @@ export class StorageService implements IStorageService {
         const tx = this.db!.transaction(storeName, "readwrite");
         await Promise.all([...ids.map((id) => tx.store.delete(id)), tx.done]);
       }
-
-      return { success: true, data: undefined };
-    } catch (error) {
-      return {
-        success: false,
-        error: parseError(error),
-      };
-    }
-  }
-
-  // ── Mutation ────────────────────────────────────────────────────────
-
-  async updateChannels(
-    id: string,
-    storeName: StoreName,
-    color: ChannelColor,
-  ): Promise<StorageResult<void>> {
-    try {
-      const result = await this.retrieve(id, storeName);
-      if (!result.success) {
-        return { success: false, error: result.error };
-      }
-
-      const updated: StoredChannelData = {
-        ...result.data,
-        color,
-        lastAccessedAt: Date.now(),
-      };
-      await this.db!.put(storeName, updated);
-      this.cache.set(id, updated, updated.byteSize);
 
       return { success: true, data: undefined };
     } catch (error) {

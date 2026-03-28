@@ -21,6 +21,32 @@ export function findBinOfPercentile(
   }
   return i;
 }
+export function findBinOfPercentiles(
+  histogram: ArrayBuffer,
+  pixelCount: number,
+  pctMin: number,
+  pctMax: number,
+): [number, number] {
+  const bins = new Uint32Array(histogram);
+  const limitMin = pixelCount * pctMin;
+  const limitMax = pixelCount * pctMax;
+
+  let minBin = 0;
+  let maxBin = 0;
+  let i = 0;
+  let count = 0;
+  for (i = 0; i < bins.length; ++i) {
+    count += bins[i];
+    if (count <= limitMin) {
+      minBin = i + 1;
+    }
+    if (count > limitMax) {
+      maxBin = i;
+      break;
+    }
+  }
+  return [minBin, maxBin];
+}
 
 // Find bins at 10th / 90th percentile
 export function findBestFitBins(

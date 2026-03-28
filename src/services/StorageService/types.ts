@@ -3,14 +3,8 @@
  * Designed for efficient serialization (no TF.js objects)
  */
 
-import type { Channel, ChannelColor } from "@/state/types";
-import type {
-  BitDepth,
-  ColorsRaw,
-  DType,
-  ShapeArray,
-  StoreName,
-} from "../../types";
+import type { Channel } from "@/state/types";
+import type { ColorsRaw, DType, ShapeArray, StoreName } from "../../types";
 
 export type StoredItemData = {
   id: string;
@@ -36,19 +30,12 @@ export type StoredItemData = {
   colors: ColorsRaw;
 };
 
-export type StoredChannelData = {
-  id: string;
-  buffer: ArrayBuffer;
-  dtype: DType;
-  channelMetaId: string;
-  width: number;
-  height: number;
+export type StoredChannelData = Omit<Channel, "storageReference"> & {
   histogram: ArrayBuffer;
+  data: ArrayBuffer;
   createdAt: number;
   lastAccessedAt: number;
   byteSize: number;
-  color: ChannelColor;
-  bitDepth: BitDepth;
 };
 
 /**
@@ -120,13 +107,9 @@ export type ChannelStorageInput = Omit<Channel, "storageReference"> & {
  * (timestamps, byteSize) that the service manages internally.
  */
 export type StorageInput = {
-  buffer: ArrayBuffer;
-  dtype: DType;
-  shape: ShapeArray;
-  preparedChannels?: PreparedChannelData;
-  renderedSrc?: string;
-  bitDepth: BitDepth;
-  colors: ColorsRaw;
+  id: string;
+  storeName: StoreName;
+  data: ChannelStorageInput;
 };
 
 /**
@@ -232,20 +215,6 @@ export interface IStorageService {
    */
   deleteBatch(
     items: Array<{ id: string; storeName: StoreName }>,
-  ): Promise<StorageResult<void>>;
-
-  // ── Mutation ────────────────────────────────────────────────────────
-
-  /**
-   * Attach or replace the {@link PreparedChannelData} for an existing tensor.
-   * Recalculates `byteSize` after the update.
-   *
-   * Fails with an error result if the tensor does not exist.
-   */
-  updateChannels(
-    id: string,
-    storeName: StoreName,
-    color: ChannelColor,
   ): Promise<StorageResult<void>>;
 
   // ── Cache Management ───────────────────────────────────────────────

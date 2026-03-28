@@ -71,7 +71,8 @@ function getOMEDims(imageObj: Record<string, any>): Partial<OMEDims> {
       : [];
 
   dims.channelnames = channels.map(
-    (ch: any, i: number) => ch.Name ?? ch.ID ?? `Channel${i}`,
+    (ch: { Name?: string; ID?: string }, i: number) =>
+      ch.Name ?? ch.ID ?? `Channel${i}`,
   );
 
   return dims;
@@ -98,7 +99,6 @@ function getImageJDims(imageDescription: string): Partial<OMEDims> | undefined {
           break;
       }
     });
-    console.log(dims);
     return dims;
   }
 }
@@ -133,54 +133,8 @@ export class TiffReader implements ITiffReader {
    * 3. Extract metadata tags from each IFD
    * 4. Apply heuristics to suggest interpretation
    */
-  analyze(buffer: ArrayBuffer): AnalyzeTiffOutput {
-    const view = new DataView(buffer);
 
-    // Parse header
-    const byteOrder = TiffReader.parseByteOrder(view);
-    if (!byteOrder) {
-      return TiffReader.unknownResult();
-    }
-
-    const littleEndian = byteOrder === "little";
-
-    // Verify TIFF magic number (42)
-    const magic = view.getUint16(2, littleEndian);
-    if (magic !== 42) {
-      return TiffReader.unknownResult();
-    }
-
-    // Get first IFD offset
-    let ifdOffset = view.getUint32(4, littleEndian);
-
-    // Walk IFD chain
-    const ifds: TiffIFDEntry[] = [];
-    const maxIFDs = 10000; // Safety limit
-
-    while (ifdOffset !== 0 && ifds.length < maxIFDs) {
-      if (ifdOffset >= buffer.byteLength) break;
-
-      const ifd = TiffReader.parseIFD(view, ifdOffset, littleEndian);
-      ifds.push(ifd.entry);
-      ifdOffset = ifd.nextOffset;
-    }
-
-    const frameCount = ifds.length;
-
-    if (frameCount <= 1) {
-      return {
-        frameCount,
-        isMultiFrame: false,
-        suggestedType: "unknown",
-        confidence: 1.0,
-        metadata: {},
-      };
-    }
-
-    // Apply detection heuristics
-    return TiffReader.classifyFrames(ifds);
-  }
-  async analyzeGeoTiff(buffer: ArrayBuffer): Promise<AnalyzeTiffOutput> {
+  async analyze(buffer: ArrayBuffer): Promise<AnalyzeTiffOutput> {
     let output: AnalyzeTiffOutput;
     try {
       const tiff = await fromArrayBuffer(buffer);

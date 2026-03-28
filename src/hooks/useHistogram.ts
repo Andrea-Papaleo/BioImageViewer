@@ -1,6 +1,6 @@
 import { StorageService } from "@/services/StorageService";
 import { STORES } from "@/types";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export const useHistogram = (channelId: string) => {
   const [channelHistogram, setChannelHistogram] = useState<

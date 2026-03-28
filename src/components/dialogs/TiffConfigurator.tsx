@@ -1,5 +1,5 @@
 import type {
-  FileAnalysisResult,
+  TiffAnalysisResult,
   TiffImportConfig,
 } from "@/services/DataPipelineService/types";
 import { DimensionOrder } from "@/tools/TiffReader/types";
@@ -12,13 +12,13 @@ export const TiffConfigurator = ({
   index,
   key,
 }: {
-  tiffAnalysis: FileAnalysisResult;
+  tiffAnalysis: TiffAnalysisResult;
   updateConfigs: (config: TiffImportConfig) => void;
   updateError: (error: boolean) => void;
   index: number;
   key: string;
 }) => {
-  const tiffInfo = tiffAnalysis.tiffInfo;
+  const tiffInfo = tiffAnalysis;
 
   const [selectedChannels, setSelectedChannels] = useState<
     TiffImportConfig["channels"]

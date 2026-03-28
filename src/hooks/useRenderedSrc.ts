@@ -51,7 +51,7 @@ export function useRenderedSrc(channels: ChannelWithColors[]): {
           const pixelCount = width * height;
           const rgbBuffer = new Uint8Array(pixelCount * 3);
 
-          const luts = [...result.data.values()].map(({ buffer }, idx) => {
+          const luts = [...result.data.values()].map(({ data }, idx) => {
             const { rampMin, rampMax, colorMap } = channels[idx];
             const lut = createLUT({
               bitDepth,
@@ -61,9 +61,7 @@ export function useRenderedSrc(channels: ChannelWithColors[]): {
             });
             return {
               buffer:
-                bitDepth === 8
-                  ? new Uint8Array(buffer)
-                  : new Uint16Array(buffer),
+                bitDepth === 8 ? new Uint8Array(data) : new Uint16Array(data),
               lut,
             };
           });

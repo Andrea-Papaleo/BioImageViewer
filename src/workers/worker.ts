@@ -1,11 +1,17 @@
 // src/workers/scheduler/worker.ts
-import { analyzeTiff, loadAndPrepare } from "@/tools/IOUtils";
+import {
+  analyzeTiff,
+  loadAndPrepare,
+  loadAndPrepareBasic,
+} from "@/tools/IOUtils";
 import type { IWorkerAPI, TaskRegistry } from "./types";
 import "./workerPolyfills"; // Must be first — polyfills `window` for zarr/imjoy-rpc
 
 import * as Comlink from "comlink";
 
 const taskRegistry: TaskRegistry = {
+  loadAndPrepareBasic: (payload, ct, prog) =>
+    loadAndPrepareBasic(payload, ct, prog),
   loadAndPrepare: (payload, ct, prog) => loadAndPrepare(payload, ct, prog),
   analyzeTiff: (payload, ct, prog) => analyzeTiff(payload, ct, prog),
 };

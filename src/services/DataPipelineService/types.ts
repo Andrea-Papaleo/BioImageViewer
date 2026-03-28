@@ -5,9 +5,27 @@ import type {
   Plane,
 } from "../../state/types";
 import type { DimensionOrder, OMEDims } from "../../tools/TiffReader/types";
+import type { StoredItemReference } from "../StorageService";
 import type { Progress, TaskError } from "../types";
-import type { ImageSeriesResult } from "@/tools/types";
+import type { ChannelResult, ImageSeriesResult } from "@/tools/types";
 
+export const FILE = {
+  BASIC: "basic",
+  TIFF: "tiff",
+  DICOM: "dicom",
+  CZI: "czi",
+} as const;
+export const MIME = {
+  PNG: "image/png",
+  JPEG: "image/jpeg",
+  TIFF: "image/tiff",
+  DICOM: "application/dicom",
+  BMP: "image/bmp",
+  CZI: "image/czi",
+  UNKNOWN: "application/octet-stream",
+} as const;
+export type MimeType = (typeof MIME)[keyof typeof MIME];
+export type FileType = "standard" | "tiff" | "dicom" | "czi";
 // ============================================================
 // Pipeline Status & Progress
 // ============================================================
@@ -55,7 +73,7 @@ export type TiffImportConfig = {
 // Pipeline Results
 // ============================================================
 
-export type PipelineImageResult = {
+export type PipelineDataResult = {
   fileName: string;
   imageSeries: ImageSeriesResult[];
   images: ImageObject[];
@@ -64,21 +82,75 @@ export type PipelineImageResult = {
   channelMetas: ChannelMeta[];
 };
 
-export type PipelineResult = {
-  success: boolean;
-  images: PipelineImageResult[];
-  metadataIds: string[];
-  errors: TaskError[];
-  warnings: string[];
-  stats: {
-    totalFiles: number;
-    successCount: number;
-    failedCount: number;
-    totalBytes: number;
-    preparationTimeMs: number;
-  };
+export type ReaderResult =
+  | {
+      success: false;
+      reason: "error";
+      errors: TaskError[];
+    }
+  | PipelineCancelResult
+  | {
+      success: true;
+      data: {
+        imageSeries: ImageSeriesResult[];
+        channelMetas: ChannelMeta[];
+        images: ImageObject[];
+        planes: Plane[];
+        channelData: ChannelResult[];
+      };
+    };
+export type PipelineCancelResult = {
+  success: false;
+  reason: "cancelled";
+  warning: string;
+};
+export type PipelineResult =
+  | {
+      success: boolean;
+      cancelled: boolean;
+      data: PipelineDataResult[];
+      errors: TaskError[];
+      warnings: string[];
+      stats: {
+        totalFiles: number;
+        successCount: number;
+        failedCount: number;
+        totalBytes: number;
+        preparationTimeMs: number;
+      };
+    }
+  | { success: false; cancelled: true };
+
+// ============================================================
+// File Interperetation Results
+// ============================================================
+
+export type FileInterpretationResult = {
+  imageType: FileType;
+  fileResults: Record<
+    string,
+    {
+      fileName: string;
+      fileSize: number;
+      mimeType: MimeType;
+      imageType: FileType;
+    }
+  >;
 };
 
+// ============================================================
+// File Analysis Results
+// ============================================================
+
+export type TiffAnalysisResult = {
+  fileName: string;
+  frameCount: number;
+  isMultiFrame: boolean;
+  suggestedType: "timeSeries" | "zStack" | "channels" | "unknown";
+  confidence: number;
+  OMEDims?: Partial<OMEDims>;
+  metadata: Record<string, unknown>;
+};
 // ============================================================
 // File Analysis Results
 // ============================================================
@@ -86,8 +158,8 @@ export type PipelineResult = {
 export type FileAnalysisResult = {
   fileName: string;
   fileSize: number;
-  mimeType: string;
-  imageType: "standard" | "tiff" | "dicom";
+  mimeType: MimeType;
+  imageType: FileType;
 
   // For TIFF files
   tiffInfo?: {
@@ -111,10 +183,16 @@ export interface IDataPipelineService {
     options?: UploadOptions,
   ): Promise<PipelineResult>;
   // Analysis (for UI decisions)
-  analyzeFiles(files: FileList): Promise<FileAnalysisResult[]>;
+  analyzeTiffs(files: FileList): Promise<TiffAnalysisResult[]>;
 
   // Progress and cancellation
   onProgress(callback: (progress: Progress) => void): () => void;
+  storeData(
+    channelData: ChannelResult[],
+  ): Promise<
+    | { success: false; error: Error }
+    | { success: true; references: StoredItemReference[] }
+  >;
   cancel(): void;
 
   // State
@@ -132,7 +210,7 @@ export type TiffDialogCallbackResult = Record<string, TiffImportConfig>;
  * The pipeline pauses and waits for the callback to resolve
  */
 export type TiffDialogCallback = (
-  analysisResults: FileAnalysisResult[],
+  analysisResults: TiffAnalysisResult[],
 ) => Promise<TiffDialogCallbackResult | null>; //null = cancel
 
 /**

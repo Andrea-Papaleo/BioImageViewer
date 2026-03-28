@@ -1,18 +1,29 @@
-import type { ImageSeriesResult, LoadAndPrepareOutput } from "@/tools/types.ts";
-import { STORES, type StoreName } from "../../types.ts";
+import type {
+  ChannelResult,
+  ImageSeriesResult,
+  LoadAndPrepareOutput,
+} from "@/tools/types.ts";
+import { STORES } from "../../types.ts";
 import { parseError } from "../../utils.ts";
 import { StorageService } from "../StorageService/StorageService.ts";
-import type { ChannelStorageInput } from "../StorageService/types.ts";
+import type { StoredItemReference } from "../StorageService/types.ts";
 import type { Progress, TaskError } from "../types.ts";
 import { TaskPriority, type TaskHandle } from "../WorkerScheduler/types.ts";
 import { WorkerScheduler } from "../WorkerScheduler/WorkerScheduler.ts";
-import type {
-  FileAnalysisResult,
-  IDataPipelineService,
-  PipelineResult,
-  PipelineStage,
-  TiffImportConfig,
-  UploadOptionswithCallbacks,
+import {
+  MIME,
+  type FileAnalysisResult,
+  type FileInterpretationResult,
+  type FileType,
+  type IDataPipelineService,
+  type MimeType,
+  type PipelineCancelResult,
+  type PipelineResult,
+  type PipelineStage,
+  type ReaderResult,
+  type TiffAnalysisResult,
+  type TiffImportConfig,
+  type UploadOptionswithCallbacks,
 } from "./types.ts";
 import type {
   Channel,
@@ -53,6 +64,7 @@ export class DataPipelineService implements IDataPipelineService {
   private static instance: DataPipelineService | null = null;
 
   private scheduler: WorkerScheduler;
+  private startTime: number | null = null;
   private storage: StorageService;
   private progress: Progress = { ...INITIAL_PROGRESS };
   private progressListeners: Set<(progress: Progress) => void> = new Set();
@@ -105,7 +117,7 @@ export class DataPipelineService implements IDataPipelineService {
     files: FileList,
     options?: UploadOptionswithCallbacks,
   ): Promise<PipelineResult> {
-    const startTime = Date.now();
+    this.startTime = Date.now();
     this.resetProgress();
 
     try {
@@ -115,178 +127,59 @@ export class DataPipelineService implements IDataPipelineService {
         totalCount: files.length,
         overallProgress: 5,
       });
-
-      const analysisResult = await this.analyzeFiles(files);
-
+      console.log("heer");
+      const interpretationResults = this.interpretFiles(files);
       if (this.abortController?.signal.aborted) {
-        return this.cancelledResult(files.length);
+        return { success: false, cancelled: true };
       }
 
-      const hasMultiframe = analysisResult.some(
-        (result) => result.tiffInfo?.isMultiFrame,
-      );
-      // Handle TIFF files needing user input
-      const tiffConfigs = new Map<string, TiffImportConfig>();
-      if (hasMultiframe && options?.onTiffDialog) {
-        const config = await options.onTiffDialog(analysisResult);
-        if (config === null) {
-          this.resetProgress();
-          return this.cancelledResult(files.length);
-        } else {
-          Object.entries(config).forEach(([fileName, config]) => {
-            tiffConfigs.set(fileName, config);
-          });
+      let imageResults: ReaderResult;
+      switch (interpretationResults.imageType) {
+        case "standard":
+          imageResults = await this.parseBasicImages(
+            files,
+            interpretationResults.fileResults,
+          );
+          break;
+
+        case "dicom":
+
+        case "czi":
+
+        case "tiff":
+          imageResults = await this.parseTiffImages(files, options);
+          break;
+      }
+
+      if (!imageResults.success) {
+        if (imageResults.reason === "cancelled") {
+          return { success: false, cancelled: true };
         }
-      }
-
-      // -- Stage 2: Load + Prepare in workers
-
-      this.updateProgress({
-        stage: "loading",
-        overallProgress: 10,
-      });
-
-      const taskHandles: Array<{
-        fileName: string;
-        handle: TaskHandle<LoadAndPrepareOutput>;
-      }> = [];
-
-      const errors: TaskError[] = [];
-      let totalBytes = 0;
-
-      for (let i = 0; i < files.length; i++) {
-        if (this.abortController?.signal.aborted) break;
-
-        const file = files[i];
-
-        try {
-          const fileData = await file.arrayBuffer();
-          console.log(fileData);
-          console.log(fileData.byteLength);
-          totalBytes += fileData.byteLength;
-          console.log("file data: ", fileData);
-
-          const mimeType = file.type || this.inferMimeType(file.name);
-
-          const handle = this.scheduler.dispatch({
-            type: "loadAndPrepare",
-            payload: {
-              fileData,
-              dimSpec: tiffConfigs.get(file.name)!,
-              fileName: file.name,
-              mimeType,
-            },
-            priority: TaskPriority.HIGH,
-            onProgress: (progress) => {
-              if (typeof progress === "number")
-                this.updateProgress({
-                  stageProgress: progress,
-                  currentTask: file.name,
-                  processedCount: i,
-                });
-            },
-          });
-
-          taskHandles.push({
-            fileName: file.name,
-            handle,
-          });
-        } catch (err) {
-          errors.push({
-            source: file.name,
-            error: parseError(err),
-            recoverable: true,
-          });
-        }
-      }
-
-      // --  Await all worker tasks
-      const results: Array<{
-        fileName: string;
-        output: LoadAndPrepareOutput;
-      }> = [];
-
-      for (const { fileName, handle } of taskHandles) {
-        try {
-          const output = await handle.promise;
-          results.push({ fileName, output });
-
-          this.updateProgress({
-            processedCount: results.length,
-            overallProgress:
-              10 + Math.floor((results.length / taskHandles.length) * 60),
-          });
-        } catch (err) {
-          if (err instanceof DOMException && err.name === "AbortError") {
-            // Cancelled -- don't count as error
-            continue;
-          }
-          errors.push({
-            source: fileName,
-            error: parseError(err),
-            recoverable: true,
-          });
-        }
-      }
-
-      if (results.length === 0) {
-        this.updateProgress({ stage: "error" });
         return {
           success: false,
-          metadataIds: [],
-          images: [],
-          errors,
+          cancelled: false,
+          data: [],
+          errors: [...imageResults.errors],
           warnings: [],
           stats: {
             totalFiles: files.length,
             successCount: 0,
             failedCount: files.length,
-            totalBytes,
-            preparationTimeMs: Date.now() - startTime,
+            totalBytes: 0,
+            preparationTimeMs: Date.now() - this.startTime,
           },
         };
       }
 
-      // -- Stage 3: Store in IndexedDB
-      const storageItems: Array<{
-        id: string;
-        storeName: StoreName;
-        data: ChannelStorageInput;
-      }> = [];
-
-      const imageSeries: ImageSeriesResult[] = [];
-      const images: ImageObject[] = [];
-      const planes: Plane[] = [];
-      const channelMetas: ChannelMeta[] = [];
-      this.updateProgress({
-        stage: "storing",
-        overallProgress: 75,
-      });
-      results.forEach((result) => {
-        imageSeries.push(...result.output.imageSeries);
-        images.push(...result.output.images);
-        planes.push(...result.output.planes);
-        channelMetas.push(...result.output.channelMetas);
-
-        result.output.channels.forEach((channel) => {
-          storageItems.push({
-            id: channel.id,
-            storeName: STORES.CHANNEL_DATA,
-            data: channel,
-          });
-        });
-      });
-
-      const storageResult = await this.storage.storeBatch(storageItems);
+      const storageResult = await this.storeData(imageResults.data.channelData);
 
       if (!storageResult.success) {
         this.updateProgress({ stage: "error" });
         return {
           success: false,
-          metadataIds: [],
-          images: [],
+          cancelled: false,
+          data: [],
           errors: [
-            ...errors,
             {
               source: "IndexedDB",
               error: storageResult.error,
@@ -298,8 +191,8 @@ export class DataPipelineService implements IDataPipelineService {
             totalFiles: files.length,
             successCount: 0,
             failedCount: files.length,
-            totalBytes,
-            preparationTimeMs: Date.now() - startTime,
+            totalBytes: 0,
+            preparationTimeMs: Date.now() - this.startTime,
           },
         };
       }
@@ -311,15 +204,15 @@ export class DataPipelineService implements IDataPipelineService {
         overallProgress: 90,
       });
 
-      const channelRefs = storageResult.data;
-
-      const channels: Channel[] = storageItems.map((item, idx) => {
-        const { data: _data, histogram: _histogram, ...rest } = item.data;
-        return {
-          ...rest,
-          storageReference: channelRefs[idx],
-        };
-      });
+      const channels: Channel[] = imageResults.data.channelData.map(
+        (item, idx) => {
+          const { data: _data, histogram: _histogram, ...rest } = item;
+          return {
+            ...rest,
+            storageReference: storageResult.references[idx],
+          };
+        },
+      );
 
       // Collect results — to be dispatched by the caller
       // (DataPipelineService does NOT dispatch to Redux directly;
@@ -328,31 +221,30 @@ export class DataPipelineService implements IDataPipelineService {
       this.updateProgress({
         stage: "complete",
         overallProgress: 100,
-        processedCount: results.length,
+        processedCount: 100,
       });
 
       return {
         success: true,
-        images: [
+        cancelled: false,
+        data: [
           {
-            fileName: "fuck",
-            imageSeries,
-            images,
-            planes,
+            fileName: files[0].name,
+            imageSeries: imageResults.data.imageSeries,
+            images: imageResults.data.images,
+            planes: imageResults.data.planes,
+            channelMetas: imageResults.data.channelMetas,
             channels,
-            channelMetas,
           },
         ],
-        metadataIds: [],
-        errors,
-        warnings:
-          errors.length > 0 ? [`${errors.length} file(s) failed to load`] : [],
+        errors: [],
+        warnings: [],
         stats: {
           totalFiles: files.length,
-          successCount: results.length,
-          failedCount: errors.length,
-          totalBytes,
-          preparationTimeMs: Date.now() - startTime,
+          successCount: files.length,
+          failedCount: 0,
+          totalBytes: 0,
+          preparationTimeMs: Date.now() - this.startTime,
         },
       };
     } catch (err) {
@@ -361,6 +253,232 @@ export class DataPipelineService implements IDataPipelineService {
     }
   }
 
+  async storeData(
+    channelData: ChannelResult[],
+  ): Promise<
+    | { success: false; error: Error }
+    | { success: true; references: StoredItemReference[] }
+  > {
+    const storageItems = channelData.map((channel) => ({
+      id: channel.id,
+      storeName: STORES.CHANNEL_DATA,
+      data: channel,
+    }));
+    const storageResult = await this.storage.storeBatch(storageItems);
+
+    if (!storageResult.success) {
+      return { success: false, error: storageResult.error };
+    }
+
+    // -- Stage 4: Build Redux-ready payload
+
+    this.updateProgress({
+      stage: "storing",
+      overallProgress: 90,
+    });
+
+    return { success: true, references: storageResult.data };
+  }
+
+  async parseBasicImages(
+    files: FileList,
+    fileAnalyses: FileInterpretationResult["fileResults"],
+  ) {
+    const taskHandles: Array<{
+      fileName: string;
+      handle: TaskHandle<LoadAndPrepareOutput>;
+    }> = [];
+
+    const errors: TaskError[] = [];
+    let totalBytes = 0;
+    for (let i = 0; i < files.length; i++) {
+      if (this.abortController?.signal.aborted) break;
+
+      const file = files[i];
+
+      try {
+        const fileData = await file.arrayBuffer();
+        totalBytes += fileData.byteLength;
+
+        const handle = this.scheduler.dispatch({
+          type: "loadAndPrepareBasic",
+          payload: {
+            fileData,
+            fileName: file.name,
+            mimeType: fileAnalyses[file.name].mimeType,
+          },
+          priority: TaskPriority.HIGH,
+          onProgress: (progress) => {
+            if (typeof progress === "number")
+              this.updateProgress({
+                stageProgress: progress,
+                currentTask: file.name,
+                processedCount: i,
+              });
+          },
+        });
+
+        taskHandles.push({
+          fileName: file.name,
+          handle,
+        });
+      } catch (err) {
+        errors.push({
+          source: file.name,
+          error: parseError(err),
+          recoverable: true,
+        });
+      }
+    }
+    return this.processImages(taskHandles);
+  }
+  async parseTiffImages(
+    files: FileList,
+    options?: UploadOptionswithCallbacks,
+  ): Promise<ReaderResult> {
+    const analysisResult = await this.analyzeTiffs(files);
+
+    const hasMultiframe = analysisResult.some((result) => result.isMultiFrame);
+    // Handle TIFF files needing user input
+    const tiffConfigs = new Map<string, TiffImportConfig>();
+    if (hasMultiframe && options?.onTiffDialog) {
+      const config = await options.onTiffDialog(analysisResult);
+      if (config === null) {
+        this.resetProgress();
+
+        return this.cancelledResult();
+      } else {
+        Object.entries(config).forEach(([fileName, config]) => {
+          tiffConfigs.set(fileName, config);
+        });
+      }
+    }
+    // -- Stage 2: Load + Prepare in workers
+
+    this.updateProgress({
+      stage: "loading",
+      overallProgress: 10,
+    });
+
+    const taskHandles: Array<{
+      fileName: string;
+      handle: TaskHandle<LoadAndPrepareOutput>;
+    }> = [];
+
+    const errors: TaskError[] = [];
+    let totalBytes = 0;
+
+    for (let i = 0; i < files.length; i++) {
+      if (this.abortController?.signal.aborted) break;
+
+      const file = files[i];
+
+      try {
+        const fileData = await file.arrayBuffer();
+        totalBytes += fileData.byteLength;
+
+        const handle = this.scheduler.dispatch({
+          type: "loadAndPrepare",
+          payload: {
+            fileData,
+            dimSpec: tiffConfigs.get(file.name)!,
+            fileName: file.name,
+          },
+          priority: TaskPriority.HIGH,
+          onProgress: (progress) => {
+            if (typeof progress === "number")
+              this.updateProgress({
+                stageProgress: progress,
+                currentTask: file.name,
+                processedCount: i,
+              });
+          },
+        });
+
+        taskHandles.push({
+          fileName: file.name,
+          handle,
+        });
+      } catch (err) {
+        errors.push({
+          source: file.name,
+          error: parseError(err),
+          recoverable: true,
+        });
+      }
+    }
+
+    return this.processImages(taskHandles);
+  }
+
+  async processImages(
+    taskHandles: {
+      fileName: string;
+      handle: TaskHandle<LoadAndPrepareOutput>;
+    }[],
+  ): Promise<ReaderResult> {
+    // --  Await all worker tasks
+    const errors: TaskError[] = [];
+    const results: Array<{
+      fileName: string;
+      output: LoadAndPrepareOutput;
+    }> = [];
+
+    for (const { fileName, handle } of taskHandles) {
+      try {
+        const output = await handle.promise;
+        results.push({ fileName, output });
+
+        this.updateProgress({
+          processedCount: results.length,
+          overallProgress:
+            10 + Math.floor((results.length / taskHandles.length) * 60),
+        });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          // Cancelled -- don't count as error
+          continue;
+        }
+        errors.push({
+          source: fileName,
+          error: parseError(err),
+          recoverable: true,
+        });
+      }
+    }
+
+    if (results.length === 0) {
+      this.updateProgress({ stage: "error" });
+      return {
+        success: false,
+        reason: "error",
+        errors,
+      };
+    }
+
+    // -- Stage 3: Store in IndexedDB
+
+    const channelData: ChannelResult[] = [];
+    const imageSeries: ImageSeriesResult[] = [];
+    const images: ImageObject[] = [];
+    const planes: Plane[] = [];
+    const channelMetas: ChannelMeta[] = [];
+    this.updateProgress({
+      stage: "storing",
+      overallProgress: 75,
+    });
+    results.forEach((result) => {
+      imageSeries.push(...result.output.imageSeries);
+      images.push(...result.output.images);
+      planes.push(...result.output.planes);
+      channelMetas.push(...result.output.channelMetas);
+      channelData.push(...result.output.channels);
+    });
+    return {
+      success: true,
+      data: { imageSeries, channelMetas, images, planes, channelData },
+    };
+  }
   // ============================================================
   // File Analysis
   // ============================================================
@@ -373,14 +491,20 @@ export class DataPipelineService implements IDataPipelineService {
    * 2. For TIFFs, parse header to detect frames
    * 3. Return analysis results for UI decisions
    */
-  async analyzeFiles(files: FileList): Promise<FileAnalysisResult[]> {
+  interpretFiles(files: FileList): FileInterpretationResult {
     // Phase 1: Return basic analysis
-    const results: FileAnalysisResult[] = [];
-
+    const results: FileInterpretationResult["fileResults"] = {};
+    const imageTypeSet = new Set<FileType>();
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const mimeType = file.type || this.inferImageType(file.name);
+      const mimeType = this.inferMimeType(file);
       const imageType = this.inferImageType(file.name);
+      imageTypeSet.add(imageType);
+      if (imageTypeSet.size > 1) {
+        throw new Error(
+          `Input files must be of the same type. Found ${imageTypeSet.entries}`,
+        );
+      }
 
       const result: FileAnalysisResult = {
         fileName: file.name,
@@ -390,24 +514,43 @@ export class DataPipelineService implements IDataPipelineService {
       };
 
       // For TIFF files, analyze in worker to detect multi-frame
-      if (imageType === "tiff") {
-        try {
-          const fileData = await file.arrayBuffer();
-          const handle = this.scheduler.dispatch({
-            type: "analyzeTiff",
-            payload: { fileData },
-            priority: TaskPriority.HIGH,
-          });
 
-          const tiffResult = await handle.promise;
-          result.tiffInfo = {
-            ...tiffResult,
-          };
-        } catch {
-          //if analysis fails, treat as regular image
-        }
+      results[file.name] = result;
+    }
+
+    return { imageType: [...imageTypeSet][0], fileResults: results };
+  }
+  // ============================================================
+  // File Analysis
+  // ============================================================
+
+  /**
+   * Analyze files without processing them
+   * Used to determine if dialogs are needed (e.g., TIFF frame interpretation)
+   *
+   * 1. Check file types
+   * 2. For TIFFs, parse header to detect frames
+   * 3. Return analysis results for UI decisions
+   */
+  async analyzeTiffs(files: FileList): Promise<TiffAnalysisResult[]> {
+    // Phase 1: Return basic analysis
+    const results: TiffAnalysisResult[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+
+      try {
+        const fileData = await file.arrayBuffer();
+        const handle = this.scheduler.dispatch({
+          type: "analyzeTiff",
+          payload: { fileData },
+          priority: TaskPriority.HIGH,
+        });
+
+        const tiffResult = await handle.promise;
+        results.push({ fileName: file.name, ...tiffResult });
+      } catch {
+        //if analysis fails, treat as regular image
       }
-      results.push(result);
     }
 
     return results;
@@ -477,47 +620,45 @@ export class DataPipelineService implements IDataPipelineService {
     this.abortController = new AbortController();
   }
 
-  private cancelledResult(totalFiles: number): PipelineResult {
+  private cancelledResult(): PipelineCancelResult {
     return {
       success: false,
-      metadataIds: [],
-      images: [],
-      errors: [],
-      warnings: ["Upload cancelled by user"],
-      stats: {
-        totalFiles,
-        successCount: 0,
-        failedCount: 0,
-        totalBytes: 0,
-        preparationTimeMs: 0,
-      },
+      reason: "cancelled",
+      warning: "Upload cancelled by user",
     };
   }
 
-  private inferMimeType(filename: string): string {
-    const ext = filename.split(".").pop()?.toLowerCase();
+  private inferMimeType(file: File): MimeType {
+    const type = file.type;
+    if ((Object.values(MIME) as string[]).includes(type)) {
+      return type as MimeType;
+    }
+    const ext = file.name.split(".").pop()?.toLowerCase();
     switch (ext) {
       case "png":
-        return "image/png";
+        return MIME.PNG;
       case "jpg":
       case "jpeg":
-        return "image/jpeg";
+        return MIME.JPEG;
       case "tif":
       case "tiff":
-        return "image/tiff";
+        return MIME.TIFF;
       case "dcm":
-        return "application/dicom";
+        return MIME.DICOM;
       case "bmp":
-        return "image/bmp";
+        return MIME.BMP;
+      case "czi":
+        return MIME.CZI;
       default:
-        return "application/octet-stream";
+        return MIME.UNKNOWN;
     }
   }
 
-  private inferImageType(fileName: string): "standard" | "tiff" | "dicom" {
+  private inferImageType(fileName: string): FileType {
     const ext = fileName.split(".").pop()?.toLowerCase();
     if (ext === "tif" || ext === "tiff") return "tiff";
     if (ext === "dcm") return "dicom";
+    if (ext === "czi") return "czi";
     return "standard";
   }
   // ============================================================

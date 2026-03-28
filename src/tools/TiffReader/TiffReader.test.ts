@@ -78,33 +78,33 @@ function createMinimalTiff(
 describe("TiffAnalyzerService", () => {
   const analyzer = new TiffReader();
 
-  it("should detect single-frame TIFF as non-multiframe", () => {
+  it("should detect single-frame TIFF as non-multiframe", async () => {
     const buffer = createMinimalTiff(1);
-    const result = analyzer.analyze(buffer);
+    const result = await analyzer.analyze(buffer);
 
     expect(result.frameCount).toBe(1);
     expect(result.isMultiFrame).toBe(false);
   });
 
-  it("should detect multi-frame TIFF", () => {
+  it("should detect multi-frame TIFF", async () => {
     const buffer = createMinimalTiff(10);
-    const result = analyzer.analyze(buffer);
+    const result = await analyzer.analyze(buffer);
 
     expect(result.frameCount).toBe(10);
     expect(result.isMultiFrame).toBe(true);
   });
 
-  it("should suggest timeSeries when DateTime tags present", () => {
+  it("should suggest timeSeries when DateTime tags present", async () => {
     const buffer = createMinimalTiff(5, { dateTime: true });
-    const result = analyzer.analyze(buffer);
+    const result = await analyzer.analyze(buffer);
 
     expect(result.isMultiFrame).toBe(true);
     expect(result.suggestedType).toBe("timeSeries");
   });
 
-  it("should return unknown for invalid buffer", () => {
+  it("should return unknown for invalid buffer", async () => {
     const buffer = new ArrayBuffer(4); // Too small
-    const result = analyzer.analyze(buffer);
+    const result = await analyzer.analyze(buffer);
 
     expect(result.frameCount).toBe(1);
     expect(result.isMultiFrame).toBe(false);

@@ -2,6 +2,7 @@ import { decodeStack, Stack as IJSStack, Image as IJSImage } from "image-js";
 import { ImageShapeEnum, type ImageShapeInfo } from "./types";
 import type { TiffImportConfig } from "@/services/DataPipelineService/types";
 import { devError } from "@/utils";
+import { findBinOfPercentiles } from "./histogram/stolen";
 
 // ============================================================
 // Image Loading
@@ -195,4 +196,20 @@ export const extractImageDimensionsFromStack = (
   }
 
   return images;
+};
+
+export const processChannel = (channel: IJSImage) => {
+  const histogram = channel.histogram().buffer as ArrayBuffer;
+  const data = channel.getRawImage().data.buffer as ArrayBuffer;
+  const numPixels = channel.width * channel.height;
+  const [rampMin, rampMax] = findBinOfPercentiles(
+    histogram,
+    numPixels,
+    0.5,
+    0.98,
+  );
+  const { min: mins, max: maxes } = channel.minMax();
+  const minValue = mins[0];
+  const maxValue = maxes[0];
+  return { data, histogram, rampMin, rampMax, minValue, maxValue };
 };

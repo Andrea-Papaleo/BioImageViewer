@@ -1,6 +1,10 @@
 // src/workers/scheduler/types.ts
 
-import type { LoadAndPrepareInput, LoadAndPrepareOutput } from "@/tools/types";
+import type {
+  LoadAndPrepareBasicInput,
+  LoadAndPrepareInput,
+  LoadAndPrepareOutput,
+} from "@/tools/types";
 import type { Progress } from "../types";
 import type {
   AnalyzeTiffInput,
@@ -8,6 +12,10 @@ import type {
 } from "@/tools/TiffReader/types";
 
 export interface TaskMap {
+  loadAndPrepareBasic: {
+    payload: LoadAndPrepareBasicInput;
+    result: LoadAndPrepareOutput;
+  };
   loadAndPrepare: {
     payload: LoadAndPrepareInput;
     result: LoadAndPrepareOutput;

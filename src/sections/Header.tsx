@@ -1,7 +1,7 @@
 import { TiffImportDialog } from "@/components/dialogs";
 import { useUploadPipeline } from "@/hooks";
 import type {
-  FileAnalysisResult,
+  TiffAnalysisResult,
   TiffDialogCallbackResult,
 } from "@/services/DataPipelineService/types";
 
@@ -11,14 +11,14 @@ import { ImageSelect } from "./ImageSelect";
 export const Header = () => {
   const [tiffDialogOpen, setTiffDialogOpen] = useState(false);
   const [pendingTiffAnalysis, setPendingTiffAnalysis] = useState<
-    FileAnalysisResult[] | null
+    TiffAnalysisResult[] | null
   >(null);
   const tiffResolverRef = useRef<
     ((config: TiffDialogCallbackResult | null) => void) | null
   >(null);
   const handleTiffDialog = useCallback(
     async (
-      analysis: FileAnalysisResult[],
+      analysis: TiffAnalysisResult[],
     ): Promise<TiffDialogCallbackResult | null> => {
       return new Promise((resolve) => {
         setPendingTiffAnalysis(analysis);

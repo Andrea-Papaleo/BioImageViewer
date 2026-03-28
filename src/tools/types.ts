@@ -25,11 +25,18 @@ export interface ImageShapeInfo {
 /**
  * Input for combined load + prepare operation
  */
+export type LoadAndPrepareBasicInput = {
+  fileData: ArrayBuffer;
+  fileName: string;
+  mimeType: string;
+};
+/**
+ * Input for combined load + prepare operation
+ */
 export type LoadAndPrepareInput = {
   fileData: ArrayBuffer;
   dimSpec: TiffImportConfig;
   fileName: string;
-  mimeType: string;
 };
 /**
  * Output from load + prepare (ready for storage)

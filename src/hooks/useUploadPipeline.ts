@@ -37,24 +37,24 @@ export function useUploadPipeline(): UseUploadPipelineReturn {
       options?: UploadOptionswithCallbacks,
     ): Promise<PipelineResult> => {
       setIsUploading(true);
-
+      console.log("here");
       try {
         // 1. Run the pipeline (workers + IndexDB)
         const result = await pipeline.uploadFiles(files, options);
-
-        if (!result.success || result.images.length === 0) {
-          if (result.errors.length > 0) {
+        if (!result.success) {
+          if (result.cancelled) return result;
+          if (result.data.length > 0) {
             setErrors(
               `File Upload Error: ${result.errors
                 .map((e) => `${e.source} -- ${e.error.message}`)
                 .join("\n---\n")}`,
             );
+            return result;
           }
-          return result;
         }
 
         const { imageSeries, images, planes, channels, channelMetas } =
-          result.images[0];
+          result.data[0];
 
         const experiment: Experiment = {
           id: crypto.randomUUID(),

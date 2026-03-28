@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type {
-  FileAnalysisResult,
+  TiffAnalysisResult,
   TiffDialogCallbackResult,
   TiffImportConfig,
 } from "@/services/DataPipelineService/types";
@@ -9,7 +9,7 @@ import { TiffConfigurator } from "./TiffConfigurator";
 
 type TiffImportDialogProps = {
   open: boolean;
-  analysisResult: FileAnalysisResult[];
+  analysisResult: TiffAnalysisResult[];
   onConfirm: (config: TiffDialogCallbackResult) => void;
   onCancel: () => void;
 };
