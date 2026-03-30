@@ -25,7 +25,7 @@ export const MIME = {
   UNKNOWN: "application/octet-stream",
 } as const;
 export type MimeType = (typeof MIME)[keyof typeof MIME];
-export type FileType = "standard" | "tiff" | "dicom" | "czi";
+export type FileType = (typeof FILE)[keyof typeof FILE];
 // ============================================================
 // Pipeline Status & Progress
 // ============================================================
@@ -45,7 +45,7 @@ export type PipelineStage =
 // Upload Options
 // ============================================================
 
-export type UploadOptions = {
+type UploadOptions = {
   // Time series configuration
   timeSeries?: boolean;
   timeSeriesDelimiter?: string;
@@ -75,7 +75,7 @@ export type TiffImportConfig = DimensionConfig & {
 // Pipeline Results
 // ============================================================
 
-export type PipelineDataResult = {
+type PipelineDataResult = {
   fileName: string;
   imageSeries: ImageSeriesResult[];
   images: ImageObject[];
@@ -211,7 +211,7 @@ export type TiffDialogCallbackResult = Record<string, TiffImportConfig>;
  * Callback for requesting user decisions during pipeline execution.
  * The pipeline pauses and waits for the callback to resolve
  */
-export type TiffDialogCallback = (
+type TiffDialogCallback = (
   analysisResults: TiffAnalysisResult[],
 ) => Promise<TiffDialogCallbackResult | null>; //null = cancel
 

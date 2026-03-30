@@ -1,10 +1,11 @@
+import type { Shape } from "@/types";
 import { parseDicom } from "dicom-parser";
 import { Image as IJSImage, Stack as IJSStack } from "image-js";
 
 export class DicomReader {
-  static async analyze(
+  static async extract(
     buffer: ArrayBuffer,
-  ): Promise<{ stack: IJSStack; slices: number; channels: number }> {
+  ): Promise<{ stack: IJSStack; shape: Shape }> {
     const imgArray = new Uint8Array(buffer);
 
     const dicomImgData = parseDicom(imgArray);
@@ -54,8 +55,15 @@ export class DicomReader {
     } else {
       throw new Error("Could not parse dicom image slices.");
     }
-    const stack = new IJSStack(images);
 
-    return { stack, slices, channels: samplesPerPixel };
+    return {
+      stack: new IJSStack(images),
+      shape: {
+        width: columns,
+        height: rows,
+        planes: 1,
+        channels: samplesPerPixel,
+      },
+    };
   }
 }

@@ -1,13 +1,19 @@
 import { decodeStack, Stack as IJSStack, Image as IJSImage } from "image-js";
-import { ImageShapeEnum, type ImageShapeInfo } from "./types";
+import {
+  type ChannelResult,
+  type ImageResult,
+  type ImageSeriesResult,
+} from "./types";
 import type { DimensionConfig } from "@/services/DataPipelineService/types";
-import { devError } from "@/utils";
+import { DEFAULT_COLORS } from "@/utils";
 import { findBinOfPercentiles } from "./histogram/stolen";
+import type { ChannelMeta, Plane } from "@/state/types";
+import type { BitDepth } from "@/types";
 
 // ============================================================
 // Image Loading
 // ============================================================
-export const forceStack = (image: IJSImage | IJSStack): IJSStack => {
+const forceStack = (image: IJSImage | IJSStack): IJSStack => {
   if (image instanceof IJSStack) {
     return image;
   }
@@ -18,83 +24,31 @@ export const forceStack = (image: IJSImage | IJSStack): IJSStack => {
   return new IJSStack(splitImage);
 };
 
-export const getImageInformation = (
-  image: IJSImage | IJSStack,
-): ImageShapeInfo => {
-  if (image instanceof IJSImage) {
-    // a "proper" RGB will be an IJSImage object with 3 components
-    if (image.components === 3) {
-      return {
-        shape: ImageShapeEnum.SingleRGBImage,
-        components: image.components,
-        bitDepth: image.bitDepth,
-        alpha: image.alpha,
-      };
-    }
-
-    // 1 channel (greyscale) image will also be an IJSImage object
-    if (image.components === 1) {
-      return {
-        shape: ImageShapeEnum.GreyScale,
-        components: image.components,
-        bitDepth: image.bitDepth,
-        alpha: image.alpha,
-      };
-    }
-    // should not happen
-    devError("Unrecognized Image.JS.Image type, channels not in [1,3]");
-    return {
-      shape: ImageShapeEnum.InvalidImage,
-    };
-  } else {
-    // else RGBstack, or multi-channel, or multi-z-stack image as an IJSStack object
-    if (image.size === 0) {
-      devError("Empty image stack");
-      return {
-        shape: ImageShapeEnum.InvalidImage,
-      };
-    }
-
-    return {
-      shape: ImageShapeEnum.HyperStackImage,
-      components: image.size,
-      bitDepth: image.bitDepth,
-      alpha: image.alpha,
-    };
-  }
-};
-
 /**
  * Load image from ArrayBuffer
  * Returns an image-js Stack (even for single images)
  */
 export async function loadImageFromBuffer(
   buffer: ArrayBuffer,
-): Promise<ImageShapeInfo & { stack: IJSStack }> {
+): Promise<IJSStack> {
   const dataArray = new Uint8Array(buffer);
 
   const image = decodeStack(dataArray);
 
-  const imageInfo = getImageInformation(image);
-  console.log(imageInfo);
-  const stack = forceStack(image);
-  return {
-    ...imageInfo,
-    stack,
-  };
+  return forceStack(image);
 }
 
 export const extractImageDimensionsFromStack = (
   imageStack: IJSStack,
   dimensonSpec: DimensionConfig,
-) => {
+): Map<number, Map<number, Map<number, IJSImage>>> => {
   const { dimensionOrder, channels, slices, frames } = dimensonSpec;
 
-  const images: Map<number, Map<number, Map<number, IJSImage>>> = new Map();
+  const imageMap: Map<number, Map<number, Map<number, IJSImage>>> = new Map();
 
   const addToStructure = (t: number, z: number, c: number, data: IJSImage) => {
-    if (images.has(t)) {
-      const planes = images.get(t)!;
+    if (imageMap.has(t)) {
+      const planes = imageMap.get(t)!;
       if (planes.has(z)) {
         const channels = planes.get(z)!;
         if (channels.has(c)) {
@@ -105,7 +59,7 @@ export const extractImageDimensionsFromStack = (
         planes.set(z, new Map([[c, data]]));
       }
     } else {
-      images.set(t, new Map([[z, new Map([[c, data]])]]));
+      imageMap.set(t, new Map([[z, new Map([[c, data]])]]));
     }
   };
   switch (dimensionOrder) {
@@ -195,10 +149,10 @@ export const extractImageDimensionsFromStack = (
       break;
   }
 
-  return images;
+  return imageMap;
 };
 
-export const processChannel = (channel: IJSImage) => {
+const processChannel = (channel: IJSImage) => {
   const histogram = channel.histogram().buffer as ArrayBuffer;
   const data = channel.getRawImage().data.buffer as ArrayBuffer;
   const numPixels = channel.width * channel.height;
@@ -212,4 +166,119 @@ export const processChannel = (channel: IJSImage) => {
   const minValue = mins[0];
   const maxValue = maxes[0];
   return { data, histogram, rampMin, rampMax, minValue, maxValue };
+};
+
+export const experimentFromStack = (
+  imageSeriesMap: Map<number, Map<number, Map<number, IJSImage>>>,
+  config: {
+    fileName: string;
+    shape: {
+      width: number;
+      height: number;
+      channels: number;
+      planes: number;
+    };
+
+    bitDepth: BitDepth;
+  },
+) => {
+  const imageSeries: ImageSeriesResult[] = [];
+  const images: ImageResult[] = [];
+  const planes: Plane[] = [];
+  const channels: ChannelResult[] = [];
+  const channelMetas: ChannelMeta[] = [];
+
+  const bitDepth = config.bitDepth;
+  const name = config.fileName.split(".")[0];
+  const series: ImageSeriesResult = {
+    id: crypto.randomUUID(),
+    name: `${name}-series`,
+    bitDepth: config.bitDepth,
+    shape: config.shape,
+    timeSeries: false,
+    imageIds: [],
+    channels: [],
+  };
+  const channelMeta: ChannelMeta[] = Array.from(
+    { length: config.shape.channels },
+    (_v, idx) => ({
+      id: crypto.randomUUID(),
+      name: `Channel-${idx}`,
+      bitDepth,
+      seriesId: series.id,
+      colorMap: DEFAULT_COLORS[idx % 6],
+      minValue: 2 ** bitDepth - 1,
+      maxValue: 0,
+      rampMinLimit: 2 ** bitDepth - 1,
+      rampMaxLimit: 0,
+      rampMin: 2 ** bitDepth - 1,
+      rampMax: 0,
+      visible: true,
+    }),
+  );
+  series.channels = channelMeta.map((chM) => chM.id);
+  channelMetas.push(...channelMeta);
+  const initImagePlane = Math.floor(config.shape.planes / 2);
+
+  imageSeriesMap.forEach((imageMap, imageIDX) => {
+    const image: ImageResult = {
+      id: crypto.randomUUID(),
+      name: `${name}-${imageIDX}`,
+      seriesId: series.id,
+      shape: config.shape,
+      categoryId: "cat",
+      activePlane: initImagePlane,
+      planeIds: [],
+      timepoint: series.timeSeries ? imageIDX : 0,
+      bitDepth,
+    };
+
+    series.imageIds.push(image.id);
+    imageMap.forEach((planeMap, planeIDX) => {
+      const plane: Plane = {
+        id: crypto.randomUUID(),
+        imageId: image.id,
+        zIndex: planeIDX,
+        channelIds: [],
+      };
+      image.planeIds.push(plane.id);
+      planeMap.forEach((channel, channelIDX) => {
+        const { data, histogram, minValue, rampMin, maxValue, rampMax } =
+          processChannel(channel);
+        const meta = channelMeta[channelIDX];
+        if (minValue < meta.minValue) {
+          meta.minValue = minValue;
+          meta.rampMinLimit = minValue;
+        }
+        if (maxValue > meta.maxValue) {
+          meta.maxValue = maxValue;
+          meta.rampMaxLimit = maxValue;
+        }
+        if (planeIDX === initImagePlane) {
+          meta.rampMin = rampMin;
+          meta.rampMax = rampMax;
+        }
+
+        const channelResult: ChannelResult = {
+          id: crypto.randomUUID(),
+          name: `Channel-${channelIDX}`,
+          channelMetaId: meta.id,
+          dtype: "float32",
+          planeId: plane.id,
+          histogram,
+          data,
+          width: channel.width,
+          height: channel.height,
+          bitDepth,
+        };
+        plane.channelIds.push(channelResult.id);
+        channels.push(channelResult);
+      });
+      planes.push(plane);
+    });
+    images.push(image);
+  });
+  imageSeries.push(series);
+
+  return { imageSeries, images, planes, channels, channelMetas };
 };

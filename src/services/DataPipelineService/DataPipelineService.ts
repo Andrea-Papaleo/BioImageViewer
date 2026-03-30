@@ -11,6 +11,7 @@ import type { Progress, TaskError } from "../types.ts";
 import { TaskPriority, type TaskHandle } from "../WorkerScheduler/types.ts";
 import { WorkerScheduler } from "../WorkerScheduler/WorkerScheduler.ts";
 import {
+  FILE,
   MIME,
   type FileAnalysisResult,
   type FileInterpretationResult,
@@ -135,19 +136,19 @@ export class DataPipelineService implements IDataPipelineService {
 
       let imageResults: ReaderResult;
       switch (interpretationResults.imageType) {
-        case "standard":
+        case FILE.BASIC:
           imageResults = await this.parseBasicImages(
             files,
             interpretationResults.fileResults,
           );
           break;
 
-        case "dicom":
+        case FILE.DICOM:
           imageResults = await this.parseDicomImages(files);
           break;
-        case "czi":
+        case FILE.CZI:
 
-        case "tiff":
+        case FILE.TIFF:
           imageResults = await this.parseTiffImages(files, options);
           break;
       }
@@ -705,10 +706,10 @@ export class DataPipelineService implements IDataPipelineService {
 
   private inferImageType(fileName: string): FileType {
     const ext = fileName.split(".").pop()?.toLowerCase();
-    if (ext === "tif" || ext === "tiff") return "tiff";
-    if (ext === "dcm") return "dicom";
-    if (ext === "czi") return "czi";
-    return "standard";
+    if (ext === "tif" || ext === "tiff") return FILE.TIFF;
+    if (ext === "dcm") return FILE.DICOM;
+    if (ext === "czi") return FILE.CZI;
+    return FILE.BASIC;
   }
   // ============================================================
   // PRIVATE -- END

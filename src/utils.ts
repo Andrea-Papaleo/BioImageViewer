@@ -31,7 +31,7 @@ export const DEFAULT_COLORS: Array<[number, number, number]> = [
   [1, 1, 0], // yellow
   [0, 1, 1], // cyan
   [1, 0, 1], // magneta
-  [1, 1, 1],
+  [1, 1, 1], // white
 ];
 
 /**

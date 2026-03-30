@@ -1,4 +1,7 @@
-import type { TiffImportConfig } from "@/services/DataPipelineService/types";
+import type {
+  MimeType,
+  TiffImportConfig,
+} from "@/services/DataPipelineService/types";
 import type {
   Channel,
   ChannelMeta,
@@ -35,7 +38,7 @@ export type LoadAndPrepareDicomInput = {
 export type LoadAndPrepareBasicInput = {
   fileData: ArrayBuffer;
   fileName: string;
-  mimeType: string;
+  mimeType: MimeType;
 };
 /**
  * Input for combined load + prepare operation
