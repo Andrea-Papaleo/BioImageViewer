@@ -2,6 +2,7 @@
 
 import type {
   LoadAndPrepareBasicInput,
+  LoadAndPrepareDicomInput,
   LoadAndPrepareInput,
   LoadAndPrepareOutput,
 } from "@/tools/types";
@@ -14,6 +15,10 @@ import type {
 export interface TaskMap {
   loadAndPrepareBasic: {
     payload: LoadAndPrepareBasicInput;
+    result: LoadAndPrepareOutput;
+  };
+  loadAndPrepareDicom: {
+    payload: LoadAndPrepareDicomInput;
     result: LoadAndPrepareOutput;
   };
   loadAndPrepare: {

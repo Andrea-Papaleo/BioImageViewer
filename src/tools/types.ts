@@ -25,6 +25,13 @@ export interface ImageShapeInfo {
 /**
  * Input for combined load + prepare operation
  */
+export type LoadAndPrepareDicomInput = {
+  fileData: ArrayBuffer;
+  fileName: string;
+};
+/**
+ * Input for combined load + prepare operation
+ */
 export type LoadAndPrepareBasicInput = {
   fileData: ArrayBuffer;
   fileName: string;

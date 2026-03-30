@@ -60,11 +60,13 @@ export type UploadOptions = {
   skipPrepare?: boolean;
 };
 
-export type TiffImportConfig = {
+export type DimensionConfig = {
   dimensionOrder: (typeof DimensionOrder)[number];
   channels: number;
   slices: number;
   frames: number;
+};
+export type TiffImportConfig = DimensionConfig & {
   frameRange?: { start: number; end: number };
   OMEDims?: OMEDims;
 };

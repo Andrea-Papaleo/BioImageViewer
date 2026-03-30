@@ -143,7 +143,8 @@ export class DataPipelineService implements IDataPipelineService {
           break;
 
         case "dicom":
-
+          imageResults = await this.parseDicomImages(files);
+          break;
         case "czi":
 
         case "tiff":
@@ -278,6 +279,54 @@ export class DataPipelineService implements IDataPipelineService {
     });
 
     return { success: true, references: storageResult.data };
+  }
+  async parseDicomImages(files: FileList) {
+    const taskHandles: Array<{
+      fileName: string;
+      handle: TaskHandle<LoadAndPrepareOutput>;
+    }> = [];
+
+    const errors: TaskError[] = [];
+    let totalBytes = 0;
+    for (let i = 0; i < files.length; i++) {
+      if (this.abortController?.signal.aborted) break;
+
+      const file = files[i];
+
+      try {
+        const fileData = await file.arrayBuffer();
+        totalBytes += fileData.byteLength;
+
+        const handle = this.scheduler.dispatch({
+          type: "loadAndPrepareDicom",
+          payload: {
+            fileData,
+            fileName: file.name,
+          },
+          priority: TaskPriority.HIGH,
+          onProgress: (progress) => {
+            if (typeof progress === "number")
+              this.updateProgress({
+                stageProgress: progress,
+                currentTask: file.name,
+                processedCount: i,
+              });
+          },
+        });
+
+        taskHandles.push({
+          fileName: file.name,
+          handle,
+        });
+      } catch (err) {
+        errors.push({
+          source: file.name,
+          error: parseError(err),
+          recoverable: true,
+        });
+      }
+    }
+    return this.processImages(taskHandles);
   }
 
   async parseBasicImages(

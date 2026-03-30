@@ -3,6 +3,7 @@ import {
   analyzeTiff,
   loadAndPrepare,
   loadAndPrepareBasic,
+  loadAndPrepareDicom,
 } from "@/tools/IOUtils";
 import type { IWorkerAPI, TaskRegistry } from "./types";
 import "./workerPolyfills"; // Must be first — polyfills `window` for zarr/imjoy-rpc
@@ -10,6 +11,8 @@ import "./workerPolyfills"; // Must be first — polyfills `window` for zarr/imj
 import * as Comlink from "comlink";
 
 const taskRegistry: TaskRegistry = {
+  loadAndPrepareDicom: (payload, ct, prog) =>
+    loadAndPrepareDicom(payload, ct, prog),
   loadAndPrepareBasic: (payload, ct, prog) =>
     loadAndPrepareBasic(payload, ct, prog),
   loadAndPrepare: (payload, ct, prog) => loadAndPrepare(payload, ct, prog),

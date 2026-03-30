@@ -1,6 +1,6 @@
 import { decodeStack, Stack as IJSStack, Image as IJSImage } from "image-js";
 import { ImageShapeEnum, type ImageShapeInfo } from "./types";
-import type { TiffImportConfig } from "@/services/DataPipelineService/types";
+import type { DimensionConfig } from "@/services/DataPipelineService/types";
 import { devError } from "@/utils";
 import { findBinOfPercentiles } from "./histogram/stolen";
 
@@ -86,7 +86,7 @@ export async function loadImageFromBuffer(
 
 export const extractImageDimensionsFromStack = (
   imageStack: IJSStack,
-  dimensonSpec: TiffImportConfig,
+  dimensonSpec: DimensionConfig,
 ) => {
   const { dimensionOrder, channels, slices, frames } = dimensonSpec;
 
