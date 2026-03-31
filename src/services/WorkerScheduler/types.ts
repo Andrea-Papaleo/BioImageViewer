@@ -94,13 +94,6 @@ export interface SchedulerOptions {
   maxErrorLogSize?: number;
 }
 
-type TaskHandler<K extends keyof TaskMap> = (
-  payload: TaskMap[K]["payload"],
-  cancelToken: CancelToken,
-  onProgress: (progress: number | Partial<Progress>) => void,
-) => Promise<TaskMap[K]["result"]>;
-
-export type TaskRegistry = { [K in keyof TaskMap]: TaskHandler<K> };
 /**
  * WorkerAPI
  */

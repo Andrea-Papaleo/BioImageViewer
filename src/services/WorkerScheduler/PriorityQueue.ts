@@ -1,6 +1,6 @@
 // src/workers/scheduler/PriorityQueue.ts
 
-export type Comparator<T> = (a: T, b: T) => number;
+type Comparator<T> = (a: T, b: T) => number;
 
 export class PriorityQueue<T> {
   private heap: T[] = [];

@@ -1,11 +1,6 @@
-import type {
-  Channel,
-  ChannelMeta,
-  ImageObject,
-  Plane,
-} from "../../state/types";
-import type { DimensionOrder, OMEDims } from "../../tools/TiffReader/types";
-import type { StoredItemReference } from "../StorageService";
+import type { Channel, ChannelMeta, ImageObject, Plane } from "@/state/types";
+import type { DimensionOrder, OMEDims } from "@/tools/TiffReader/types";
+import type { StorageReference } from "@/types";
 import type { Progress, TaskError } from "../types";
 import type { ChannelResult, ImageSeriesResult } from "@/tools/types";
 
@@ -193,7 +188,7 @@ export interface IDataPipelineService {
     channelData: ChannelResult[],
   ): Promise<
     | { success: false; error: Error }
-    | { success: true; references: StoredItemReference[] }
+    | { success: true; references: StorageReference[] }
   >;
   cancel(): void;
 

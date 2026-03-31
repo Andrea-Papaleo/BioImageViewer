@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "tsp": "ts-prune -p tsconfig.app.json"
+    "knip": "knip",
+    "tsc": "tsc -p tsconfig.app.json"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
@@ -22,7 +23,6 @@
     "geotiff": "^3.0.5",
     "idb": "^8.0.3",
     "image-js": "^1.4.0",
-    "lucide-react": "^1.7.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-redux": "^9.2.0",
@@ -40,7 +40,7 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^17.4.0",
     "happy-dom": "^20.8.4",
-    "ts-prune": "^0.10.3",
+    "knip": "^6.1.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.0",

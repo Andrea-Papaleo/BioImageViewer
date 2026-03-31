@@ -270,6 +270,8 @@ export const experimentFromStack = (
           width: channel.width,
           height: channel.height,
           bitDepth,
+          maxValue,
+          minValue,
         };
         plane.channelIds.push(channelResult.id);
         channels.push(channelResult);

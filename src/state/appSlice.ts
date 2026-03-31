@@ -10,12 +10,12 @@ import {
   type Plane,
 } from "./types";
 
-export const experimentAdapter = createEntityAdapter<Experiment>();
-export const imageSeriesAdapter = createEntityAdapter<ImageSeries>();
-export const imageAdapter = createEntityAdapter<ImageObject>();
-export const planeAdapter = createEntityAdapter<Plane>();
-export const channelAdapter = createEntityAdapter<Channel>();
-export const channelMetaAdapter = createEntityAdapter<ChannelMeta>();
+const experimentAdapter = createEntityAdapter<Experiment>();
+const imageSeriesAdapter = createEntityAdapter<ImageSeries>();
+const imageAdapter = createEntityAdapter<ImageObject>();
+const planeAdapter = createEntityAdapter<Plane>();
+const channelAdapter = createEntityAdapter<Channel>();
+const channelMetaAdapter = createEntityAdapter<ChannelMeta>();
 
 const initialState: AppState = {
   images: imageAdapter.getInitialState(),

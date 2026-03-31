@@ -1,6 +1,6 @@
 import type { CacheStats, ILRUCache } from "./types";
 
-export type CacheEntry<T> = {
+type CacheEntry<T> = {
   key: string;
   value: T;
   byteSize: number;

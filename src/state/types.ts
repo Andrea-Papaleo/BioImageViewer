@@ -1,16 +1,5 @@
 import type { EntityState } from "@reduxjs/toolkit";
-import type { BitDepth, DType, Shape, StorageReference } from "../types";
-
-export type ImageMetadata = {
-  id: string;
-  name: string;
-  kind: string;
-  bitDepth: BitDepth;
-  shape: Shape;
-  timeSeries: boolean;
-  imageDataIds: string[];
-  defaultImageId: string;
-};
+import type { BitDepth, DType, Shape, StorageReference } from "@/types";
 
 export type Experiment = { id: string; imageSeriesIds: string[] };
 export type ImageSeries = {
@@ -41,24 +30,9 @@ export type Plane = {
   zIndex: number;
   channelIds: string[];
 };
-export type ChannelMeasurements = {
-  total?: number;
-  min?: number;
-  max?: number;
-  mean?: number;
-  median?: number;
-  std?: number;
-  mad?: number;
-  lowerQuartile?: number;
-  upperQuartile?: number;
-};
 
 export type ColorMap = [number, number, number];
-export type ChannelColor = {
-  map: [number, number, number];
-  min: number;
-  max: number;
-};
+
 export type Channel = {
   id: string;
   planeId: string;
@@ -69,9 +43,16 @@ export type Channel = {
   bitDepth: BitDepth;
   width: number;
   height: number;
+  maxValue: number;
+  minValue: number;
+  mean?: number;
+  median?: number;
+  std?: number;
+  mad?: number;
+  lowerQuartile?: number;
+  upperQuartile?: number;
 };
 
-export type ValueLimit = { limit: number; override?: number };
 export type ChannelMeta = {
   id: string;
   name: string;

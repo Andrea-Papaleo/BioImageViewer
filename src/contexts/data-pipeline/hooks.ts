@@ -1,4 +1,4 @@
-import { DataPipelineService } from "@/services/DataPipelineService/DataPipelineService";
+import { DataPipelineService } from "@/services/DataPipelineService";
 import { useContext } from "react";
 import { DataPipelineContext } from "./DataPipelineContext";
 import type { Progress } from "@/services/types";

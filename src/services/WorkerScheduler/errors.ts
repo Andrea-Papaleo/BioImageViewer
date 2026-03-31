@@ -1,7 +1,7 @@
 // src/workers/scheduler/errors.ts
 import type { TaskError, TaskErrorCode } from "./types";
 
-export function isAbortError(error: unknown): boolean {
+function isAbortError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === "AbortError") {
     return true;
   }

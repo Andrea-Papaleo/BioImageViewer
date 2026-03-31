@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { DataPipelineService } from "@/services/DataPipelineService/DataPipelineService";
+import { DataPipelineService } from "@/services/DataPipelineService";
 import { useScheduler } from "../schuduler";
 
 import type { Progress } from "@/services/types";

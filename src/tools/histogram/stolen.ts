@@ -115,29 +115,29 @@ export function findAutoIJBins(
   return [hmin, hmax];
 }
 
-// Find min and max bins using a percentile of the most commonly occurring value
-export function findAutoMinMax(
-  histogram: ArrayBuffer,
-  maxBin: number,
-): [number, number] {
-  const bins = new Uint32Array(histogram);
-  // simple linear mapping cutting elements with small appearence
-  // get 10% threshold
-  const PERCENTAGE = 0.1;
-  const th = Math.floor(bins[maxBin] * PERCENTAGE);
-  let b = 0;
-  let e = bins.length - 1;
-  for (let x = 1; x < bins.length; ++x) {
-    if (bins[x] > th) {
-      b = x;
-      break;
-    }
-  }
-  for (let x = bins.length - 1; x >= 1; --x) {
-    if (bins[x] > th) {
-      e = x;
-      break;
-    }
-  }
-  return [b, e];
-}
+// // Find min and max bins using a percentile of the most commonly occurring value
+// export function findAutoMinMax(
+//   histogram: ArrayBuffer,
+//   maxBin: number,
+// ): [number, number] {
+//   const bins = new Uint32Array(histogram);
+//   // simple linear mapping cutting elements with small appearence
+//   // get 10% threshold
+//   const PERCENTAGE = 0.1;
+//   const th = Math.floor(bins[maxBin] * PERCENTAGE);
+//   let b = 0;
+//   let e = bins.length - 1;
+//   for (let x = 1; x < bins.length; ++x) {
+//     if (bins[x] > th) {
+//       b = x;
+//       break;
+//     }
+//   }
+//   for (let x = bins.length - 1; x >= 1; --x) {
+//     if (bins[x] > th) {
+//       e = x;
+//       break;
+//     }
+//   }
+//   return [b, e];
+// }

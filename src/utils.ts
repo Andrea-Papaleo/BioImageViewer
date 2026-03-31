@@ -4,25 +4,7 @@ import type { BitDepth } from "./types";
 export const parseError = (error: unknown) => {
   return error instanceof Error ? error : new Error(String(error));
 };
-export const devError = (...args: unknown[]) => {
-  if (import.meta.env.DEV) console.error(...args);
-};
 
-// Takes a buffer and dtype and returns a typed array view of its buffer
-// based on the dtype field ("float32" | "int32" | "uint8").
-export function toTypedArray(
-  buffer: ArrayBuffer,
-  dtype: "float32" | "int32" | "uint8",
-): Float32Array | Int32Array | Uint8Array {
-  switch (dtype) {
-    case "float32":
-      return new Float32Array(buffer);
-    case "int32":
-      return new Int32Array(buffer);
-    case "uint8":
-      return new Uint8Array(buffer);
-  }
-}
 //the default colors assigned to a loaded image
 export const DEFAULT_COLORS: Array<[number, number, number]> = [
   [1, 0, 0], // red

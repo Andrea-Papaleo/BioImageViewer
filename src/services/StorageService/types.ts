@@ -4,31 +4,7 @@
  */
 
 import type { Channel } from "@/state/types";
-import type { ColorsRaw, DType, ShapeArray, StoreName } from "../../types";
-
-export type StoredItemData = {
-  id: string;
-  //Raw pixel data as ArrayBuffer (efficient for IndexedDB)
-  buffer: ArrayBuffer;
-
-  // Tensor metadata for reconstructions
-  dtype: DType;
-  shape: ShapeArray; // [Z, H, W, C]
-
-  // Byte size for cache management
-  byteSize: number;
-  // Prepared channel data (if available)
-  preparedChannels?: PreparedChannelData;
-  // Rendered preview as data URL (optional, can be regenerated)
-  renderedSrc?: string;
-
-  // Timestamps for cache management
-  createdAt: number;
-  lastAccessedAt: number;
-
-  bitDepth: number;
-  colors: ColorsRaw;
-};
+import type { StoreName, StorageReference } from "@/types";
 
 export type StoredChannelData = Omit<Channel, "storageReference"> & {
   histogram: ArrayBuffer;
@@ -36,17 +12,6 @@ export type StoredChannelData = Omit<Channel, "storageReference"> & {
   createdAt: number;
   lastAccessedAt: number;
   byteSize: number;
-};
-
-/**
- * Prepared channel data for measurements
- */
-export type PreparedChannelData = {
-  //Channel data as nested arrays (not tensors - those are disposed after prep)
-  // Outer array: channels, Inner array: pixel values
-  data: number[][];
-  // Optional: histograms per channel (256 bins)
-  histograms?: number[][];
 };
 
 /**
@@ -58,18 +23,6 @@ export type PreparedChannelData = {
 //   itemCount: number;
 //   lastCleanup: number;
 // };
-
-/**
- * Reference stored in Redux instead of actual tensor
- */
-export type StoredItemReference = {
-  storageId: string;
-  storeName: StoreName;
-  width: number;
-  height: number;
-  dtype: DType;
-  byteSize: number;
-};
 
 /**
  * Result of storage operation
@@ -138,7 +91,7 @@ export interface IStorageService {
   // ── Core Storage ───────────────────────────────────────────────────
 
   /**
-   * Persist a single tensor and return a lightweight {@link StoredItemReference}
+   * Persist a single tensor and return a lightweight {@link StorageReference}
    * suitable for Redux state.
    *
    * @param id        - Unique identifier (typically the image/annotation id).
@@ -149,11 +102,11 @@ export interface IStorageService {
     id: string,
     data: ChannelStorageInput,
     storeName: StoreName,
-  ): Promise<StorageResult<StoredItemReference>>;
+  ): Promise<StorageResult<StorageReference>>;
 
   /**
    * Persist multiple tensors in a single IndexedDB transaction per store,
-   * returning one {@link StoredItemReference} per item.
+   * returning one {@link StorageReference} per item.
    *
    * Items targeting the same store are batched into one transaction for
    * better write performance.
@@ -164,12 +117,12 @@ export interface IStorageService {
       data: ChannelStorageInput;
       storeName: StoreName;
     }>,
-  ): Promise<StorageResult<StoredItemReference[]>>;
+  ): Promise<StorageResult<StorageReference[]>>;
 
   // ── Retrieval ──────────────────────────────────────────────────────
 
   /**
-   * Retrieve the raw {@link StoredItemData} (ArrayBuffer + metadata).
+   * Retrieve the raw {@link StoredChannelData} (ArrayBuffer + metadata).
    * Checks the LRU cache first, falling back to IndexedDB.
    *
    * @param id        - Storage key.
@@ -180,7 +133,7 @@ export interface IStorageService {
     storeName: StoreName,
   ): Promise<StorageResult<StoredChannelData>>;
   /**
-   * Retrieve the raw {@link StoredItemData} (ArrayBuffer + metadata)
+   * Retrieve the raw {@link StoredChannelData} (ArrayBuffer + metadata)
    * for the given items.
    * Checks the LRU cache first, falling back to IndexedDB.
    */

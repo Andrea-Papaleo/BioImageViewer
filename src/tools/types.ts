@@ -9,21 +9,6 @@ import type {
   ImageSeries,
   Plane,
 } from "@/state/types";
-import type { BitDepth } from "@/types";
-
-export enum ImageShapeEnum {
-  DicomImage,
-  GreyScale,
-  SingleRGBImage,
-  HyperStackImage,
-  InvalidImage,
-}
-export interface ImageShapeInfo {
-  shape: ImageShapeEnum;
-  bitDepth?: BitDepth;
-  components?: number;
-  alpha?: boolean;
-}
 
 /**
  * Input for combined load + prepare operation

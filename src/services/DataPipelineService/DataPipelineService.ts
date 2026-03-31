@@ -3,10 +3,9 @@ import type {
   ImageSeriesResult,
   LoadAndPrepareOutput,
 } from "@/tools/types.ts";
-import { STORES } from "../../types.ts";
-import { parseError } from "../../utils.ts";
+import { STORES, type StorageReference } from "@/types.ts";
+import { parseError } from "@/utils.ts";
 import { StorageService } from "../StorageService/StorageService.ts";
-import type { StoredItemReference } from "../StorageService/types.ts";
 import type { Progress, TaskError } from "../types.ts";
 import { TaskPriority, type TaskHandle } from "../WorkerScheduler/types.ts";
 import { WorkerScheduler } from "../WorkerScheduler/WorkerScheduler.ts";
@@ -259,7 +258,7 @@ export class DataPipelineService implements IDataPipelineService {
     channelData: ChannelResult[],
   ): Promise<
     | { success: false; error: Error }
-    | { success: true; references: StoredItemReference[] }
+    | { success: true; references: StorageReference[] }
   > {
     const storageItems = channelData.map((channel) => ({
       id: channel.id,

@@ -2,7 +2,7 @@ import type { AggregateProgress } from "@/services/WorkerScheduler/types";
 import { WorkerScheduler } from "@/services/WorkerScheduler/WorkerScheduler";
 import { createContext } from "react";
 
-export type SchedulerContextValue = {
+type SchedulerContextValue = {
   scheduler: WorkerScheduler;
   progress: AggregateProgress;
 };

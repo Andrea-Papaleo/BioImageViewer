@@ -4,7 +4,7 @@ import { appSlice } from "./appSlice";
 
 export const appListenerMiddleware = createListenerMiddleware();
 
-export const startAppListening = appListenerMiddleware.startListening.withTypes<
+const startAppListening = appListenerMiddleware.startListening.withTypes<
   RootState,
   AppDispatch
 >();

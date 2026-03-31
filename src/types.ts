@@ -1,4 +1,3 @@
-import type { Tensor2D } from "@tensorflow/tfjs";
 import type { BitDepth as IJSBitDepth } from "image-js";
 export const DB_NAME = "tiff-explorer-data";
 export const DB_VERSION = 2;
@@ -12,6 +11,17 @@ export const STORES = {
 } as const;
 
 export type StoreName = (typeof STORES)[keyof typeof STORES];
+/**
+ * Reference stored in Redux instead of actual tensor
+ */
+export type StorageReference = {
+  storageId: string;
+  storeName: StoreName;
+  width: number;
+  height: number;
+  dtype: DType;
+  byteSize: number;
+};
 
 export const DTYPES = {
   UINT8: "uint8",
@@ -22,7 +32,6 @@ export const DTYPES = {
 export type DType = (typeof DTYPES)[keyof typeof DTYPES];
 
 export type BitDepth = IJSBitDepth;
-export type DataArray = Uint8Array | Uint16Array | Float32Array;
 export type Shape = {
   planes: number;
   height: number;
@@ -30,24 +39,3 @@ export type Shape = {
   channels: number;
 };
 export type ShapeArray = [number, number, number, number];
-
-type ColorsMeta = {
-  range: { [channel: number]: [number, number] };
-  visible: { [channel: number]: boolean };
-};
-
-export type ColorsRaw = {
-  color: [number, number, number][];
-} & ColorsMeta;
-
-export type Colors = {
-  color: Tensor2D; // shape: C x 3; [channel_idx, rgb]
-} & ColorsMeta;
-export type StorageReference = {
-  storageId: string;
-  storeName: StoreName;
-  width: number;
-  height: number;
-  dtype: DType;
-  byteSize: number;
-};

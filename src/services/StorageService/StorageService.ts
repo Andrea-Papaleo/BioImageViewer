@@ -3,14 +3,12 @@ import type { IDBPDatabase } from "idb";
 import { tensor4d, type Tensor4D } from "@tensorflow/tfjs";
 
 import { LRUCache } from "./lruCache";
-import { parseError } from "../../utils";
+import { parseError } from "@/utils";
 import type {
   CacheOptions,
   IStorageService,
   StorageResult,
   StorageUsage,
-  StoredItemData,
-  StoredItemReference,
   ChannelStorageInput,
   StoredChannelData,
   StorageInput,
@@ -21,8 +19,8 @@ import {
   STORES,
   type ShapeArray,
   type StoreName,
-} from "../../types";
-import type { ChannelColor } from "@/state/types";
+  type StorageReference,
+} from "@/types";
 
 const DEFAULT_CACHE_OPTIONS: CacheOptions = {
   maxMemoryBytes: 500 * 1024 * 1024, // 500MB
@@ -129,7 +127,7 @@ export class StorageService implements IStorageService {
     id: string,
     data: ChannelStorageInput,
     storeName: StoreName,
-  ): Promise<StorageResult<StoredItemReference>> {
+  ): Promise<StorageResult<StorageReference>> {
     try {
       await this.init();
       const now = Date.now();
@@ -148,7 +146,7 @@ export class StorageService implements IStorageService {
       // Also add to cache
       this.cache.set(id, storedData, byteSize);
 
-      const reference: StoredItemReference = {
+      const reference: StorageReference = {
         storageId: id,
         storeName,
         width: data.width,
@@ -167,12 +165,12 @@ export class StorageService implements IStorageService {
 
   async storeBatch(
     items: Array<StorageInput>,
-  ): Promise<StorageResult<StoredItemReference[]>> {
+  ): Promise<StorageResult<StorageReference[]>> {
     try {
       await this.init();
 
       const now = Date.now();
-      const references: StoredItemReference[] = [];
+      const references: StorageReference[] = [];
 
       // Group by store for efficient transactions
       const byStore = new Map<StoreName, StoredChannelData[]>();
@@ -425,7 +423,7 @@ export class StorageService implements IStorageService {
 
       let cursor = await store.openCursor();
       while (cursor) {
-        totalSize += (cursor.value as StoredItemData).byteSize;
+        totalSize += (cursor.value as StoredChannelData).byteSize;
         itemCount++;
         cursor = await cursor.continue();
       }
@@ -486,7 +484,7 @@ export class StorageService implements IStorageService {
 
       let cursor = await store.openCursor();
       while (cursor) {
-        const data = cursor.value as StoredItemData;
+        const data = cursor.value as StoredChannelData;
         if (data.lastAccessedAt < cutoff) {
           await cursor.delete();
           this.cache.delete(data.id);
