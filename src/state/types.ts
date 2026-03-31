@@ -45,6 +45,7 @@ export type Channel = {
   height: number;
   maxValue: number;
   minValue: number;
+  total?: number;
   mean?: number;
   median?: number;
   std?: number;

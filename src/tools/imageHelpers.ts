@@ -154,7 +154,8 @@ export const extractImageDimensionsFromStack = (
 
 const processChannel = (channel: IJSImage) => {
   const histogram = channel.histogram().buffer as ArrayBuffer;
-  const data = channel.getRawImage().data.buffer as ArrayBuffer;
+  const pixels = channel.getRawImage().data;
+  const pixelsBuffer = pixels.buffer as ArrayBuffer;
   const numPixels = channel.width * channel.height;
   const [rampMin, rampMax] = findBinOfPercentiles(
     histogram,
@@ -162,10 +163,42 @@ const processChannel = (channel: IJSImage) => {
     0.5,
     0.98,
   );
+  const [lowerQuartile, upperQuartile] = findBinOfPercentiles(
+    histogram,
+    numPixels,
+    0.25,
+    0.75,
+  );
   const { min: mins, max: maxes } = channel.minMax();
+  const median = channel.median()[0];
+  const mean = channel.mean()[0];
+  console.log("median: ", median, " -- mean: ", mean);
   const minValue = mins[0];
   const maxValue = maxes[0];
-  return { data, histogram, rampMin, rampMax, minValue, maxValue };
+  let sumSquaredDiff = 0;
+  let total = 0;
+  let _mad = 0;
+  for (let i = 0; i < numPixels; i++) {
+    total += pixels[i];
+    _mad += Math.abs(pixels[i] - median);
+    const diff = pixels[i] - mean;
+    sumSquaredDiff += diff * diff;
+  }
+  const mad = _mad / numPixels;
+  const std = Math.sqrt(sumSquaredDiff / numPixels);
+  return {
+    data: pixelsBuffer,
+    histogram,
+    rampMin,
+    rampMax,
+    minValue,
+    maxValue,
+    std,
+    mad,
+    total,
+    upperQuartile,
+    lowerQuartile,
+  };
 };
 
 export const experimentFromStack = (
