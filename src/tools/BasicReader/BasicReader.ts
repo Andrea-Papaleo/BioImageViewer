@@ -20,7 +20,7 @@ export class BasicReader {
       image = decodePng(imageData);
     }
     return {
-      stack: new IJSStack([image]),
+      stack: new IJSStack([...image.split()]),
       shape: {
         planes: 1,
         channels: image.channels,

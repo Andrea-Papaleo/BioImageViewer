@@ -417,7 +417,7 @@ export class StorageService implements IStorageService {
     let totalSize = 0;
     let itemCount = 0;
 
-    for (const storeName of [STORES.IMAGE_DATA, STORES.SERIES_DATA]) {
+    for (const storeName of [STORES.CHANNEL_DATA]) {
       const tx = this.db!.transaction(storeName, "readonly");
       const store = tx.objectStore(storeName);
 

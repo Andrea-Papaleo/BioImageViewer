@@ -552,7 +552,7 @@ describe("WorkerScheduler", () => {
       scheduler = new WorkerScheduler({ poolSize: 1 });
 
       const handle = scheduler.dispatch({
-        type: "loadImage",
+        type: "loadAndPrepare",
         payload: {
           fileData: new ArrayBuffer(8),
           dimSpec: {
@@ -562,7 +562,6 @@ describe("WorkerScheduler", () => {
             dimensionOrder: "xytzc",
           },
           fileName: "test.png",
-          mimeType: "image/png",
         },
         priority: TaskPriority.NORMAL,
       });
@@ -594,7 +593,6 @@ describe("WorkerScheduler", () => {
             dimensionOrder: "xytzc",
           },
           fileName: "test.tiff",
-          mimeType: "image/tiff",
         },
         priority: TaskPriority.NORMAL,
       });
@@ -639,7 +637,7 @@ describe("WorkerScheduler", () => {
       const onComplete = vi.fn();
 
       const handle = scheduler.dispatch({
-        type: "loadImage",
+        type: "loadAndPrepare",
         payload: {
           fileData: new ArrayBuffer(8),
           dimSpec: {
@@ -649,7 +647,6 @@ describe("WorkerScheduler", () => {
             dimensionOrder: "xytzc",
           },
           fileName: "test.png",
-          mimeType: "image/png",
         },
         priority: TaskPriority.NORMAL,
         onComplete,
@@ -670,7 +667,6 @@ describe("WorkerScheduler", () => {
         payload: {
           fileData: new ArrayBuffer(8),
           fileName: "test.png",
-          mimeType: "image/png",
           dimSpec: {
             channels: 1,
             slices: 1,
