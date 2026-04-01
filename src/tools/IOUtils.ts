@@ -1,13 +1,7 @@
 import { TiffReader } from "./TiffReader";
-
-import type {
-  LoadAndPrepareBasicInput,
-  LoadAndPrepareDicomInput,
-  LoadAndPrepareInput,
-  LoadAndPrepareOutput,
-} from "./types";
+import { Stack as IJSStack } from "image-js";
+import type { ImportImageInput, LoadAndPrepareOutput } from "./types";
 import type { CancelToken } from "@/services/WorkerScheduler/types";
-import type { AnalyzeTiffInput, AnalyzeTiffOutput } from "./TiffReader/types";
 
 import {
   experimentFromStack,
@@ -15,136 +9,79 @@ import {
 } from "./imageHelpers";
 import { DicomReader } from "./DicomReader/DicomReader";
 import { BasicReader } from "./BasicReader/BasicReader";
+import {
+  MIME,
+  type DimensionConfig,
+} from "@/services/DataPipelineService/types";
+import type { Shape } from "@/types";
 
-export async function loadAndPrepareDicom(
-  input: LoadAndPrepareDicomInput,
+export async function loadImage(
+  input: ImportImageInput,
   cancelToken: CancelToken,
   onProgress: (value: number) => void,
 ): Promise<LoadAndPrepareOutput> {
-  onProgress(0);
-
-  if (cancelToken.cancelled) {
-    throw new DOMException("Task cancelled", "AbortError");
+  let stack: IJSStack;
+  let shape: Shape;
+  let dimConfig: DimensionConfig;
+  switch (input.mimeType) {
+    case MIME.PNG:
+    case MIME.JPEG: {
+      const fileResult = await BasicReader.extract(
+        input.fileData,
+        input.mimeType,
+      );
+      stack = fileResult.stack;
+      shape = fileResult.shape;
+      dimConfig = {
+        dimensionOrder: "xytzc",
+        channels: shape.channels,
+        slices: shape.planes,
+        frames: 1,
+      };
+      break;
+    }
+    case MIME.DICOM: {
+      const fileResult = await DicomReader.extract(input.fileData);
+      stack = fileResult.stack;
+      shape = fileResult.shape;
+      dimConfig = {
+        dimensionOrder: "xytzc",
+        channels: shape.channels,
+        slices: shape.planes,
+        frames: 1,
+      };
+      break;
+    }
+    case MIME.TIFF: {
+      const fileResult = await TiffReader.extract(
+        input.fileData,
+        input.dimSpec!.channels,
+        input.dimSpec!.slices,
+      );
+      stack = fileResult.stack;
+      shape = fileResult.shape;
+      dimConfig = input.dimSpec!;
+      break;
+    }
+    default:
+      throw new Error(`Unsupported mimetype: ${input.mimeType}`);
   }
-  const { stack, shape } = await DicomReader.extract(input.fileData);
   onProgress(30);
 
   if (cancelToken.cancelled) {
     throw new DOMException("Task cancelled", "AbortError");
   }
-  const imageSeriesMap = extractImageDimensionsFromStack(stack, {
-    dimensionOrder: "xytzc",
-    channels: shape.channels,
-    slices: shape.planes,
-    frames: 1,
-  });
+  const imageSeriesMap = extractImageDimensionsFromStack(stack, dimConfig);
   onProgress(50);
-
   if (cancelToken.cancelled) {
     throw new DOMException("Task cancelled", "AbortError");
   }
   const { imageSeries, images, planes, channels, channelMetas } =
     experimentFromStack(imageSeriesMap, {
-      fileName: File.name,
+      fileName: input.fileName,
       shape,
       bitDepth: stack.bitDepth,
     });
   onProgress(100);
   return { imageSeries, images, planes, channels, channelMetas };
-}
-
-export async function loadAndPrepareBasic(
-  input: LoadAndPrepareBasicInput,
-  cancelToken: CancelToken,
-  onProgress: (value: number) => void,
-): Promise<LoadAndPrepareOutput> {
-  onProgress(0);
-
-  if (cancelToken.cancelled) {
-    throw new DOMException("Task cancelled", "AbortError");
-  }
-  const { stack, shape } = await BasicReader.extract(
-    input.fileData,
-    input.mimeType,
-  );
-  onProgress(30);
-
-  if (cancelToken.cancelled) {
-    throw new DOMException("Task cancelled", "AbortError");
-  }
-  const imageSeriesMap = extractImageDimensionsFromStack(stack, {
-    dimensionOrder: "xytzc",
-    channels: shape.channels,
-    slices: shape.planes,
-    frames: 1,
-  });
-  onProgress(50);
-
-  if (cancelToken.cancelled) {
-    throw new DOMException("Task cancelled", "AbortError");
-  }
-  const { imageSeries, images, planes, channels, channelMetas } =
-    experimentFromStack(imageSeriesMap, {
-      fileName: File.name,
-      shape,
-      bitDepth: stack.bitDepth,
-    });
-  onProgress(100);
-  return {
-    imageSeries,
-    images,
-    planes,
-    channelMetas,
-    channels,
-  };
-}
-
-export async function loadAndPrepare(
-  input: LoadAndPrepareInput,
-  cancelToken: CancelToken,
-  onProgress: (value: number) => void,
-): Promise<LoadAndPrepareOutput> {
-  onProgress(0);
-
-  if (cancelToken.cancelled) {
-    throw new DOMException("Task cancelled", "AbortError");
-  }
-
-  const { stack, shape } = await TiffReader.extract(
-    input.fileData,
-    input.dimSpec.channels,
-    input.dimSpec.slices,
-  );
-  onProgress(30);
-
-  if (cancelToken.cancelled) {
-    throw new DOMException("Task cancelled", "AbortError");
-  }
-
-  const imageSeriesMap = extractImageDimensionsFromStack(stack, input.dimSpec);
-  onProgress(50);
-
-  const { imageSeries, images, planes, channels, channelMetas } =
-    experimentFromStack(imageSeriesMap, {
-      fileName: File.name,
-      shape,
-      bitDepth: stack.bitDepth,
-    });
-
-  onProgress(100);
-
-  return { imageSeries, images, planes, channels, channelMetas };
-}
-
-export async function analyzeTiff(
-  payload: AnalyzeTiffInput,
-  cancelToken: CancelToken,
-  _onProgress: (value: number) => void,
-): Promise<AnalyzeTiffOutput> {
-  if (cancelToken.cancelled) {
-    throw new DOMException("Task cancelled", "AbortError");
-  }
-  const analyzer = new TiffReader();
-  //analyzer.analyze(payload.fileData);
-  return await analyzer.analyze(payload.fileData);
 }

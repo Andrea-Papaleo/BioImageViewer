@@ -172,7 +172,6 @@ const processChannel = (channel: IJSImage) => {
   const { min: mins, max: maxes } = channel.minMax();
   const median = channel.median()[0];
   const mean = channel.mean()[0];
-  console.log("median: ", median, " -- mean: ", mean);
   const minValue = mins[0];
   const maxValue = maxes[0];
   let sumSquaredDiff = 0;
@@ -220,9 +219,10 @@ export const experimentFromStack = (
   const planes: Plane[] = [];
   const channels: ChannelResult[] = [];
   const channelMetas: ChannelMeta[] = [];
+  console.log(config);
 
   const bitDepth = config.bitDepth;
-  const name = config.fileName.split(".")[0];
+  const name = parseFilename(config.fileName);
   const series: ImageSeriesResult = {
     id: crypto.randomUUID(),
     name: `${name}-series`,
@@ -316,4 +316,11 @@ export const experimentFromStack = (
   imageSeries.push(series);
 
   return { imageSeries, images, planes, channels, channelMetas };
+};
+
+const parseFilename = (filename: string): string => {
+  const splitName = filename.split(".");
+  if (splitName.length === 1) return splitName[0];
+  splitName.pop();
+  return splitName.join(".");
 };

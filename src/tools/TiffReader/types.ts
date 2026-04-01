@@ -1,6 +1,3 @@
-export type AnalyzeTiffInput = {
-  fileData: ArrayBuffer;
-};
 export type AnalyzeTiffOutput = {
   frameCount: number;
   isMultiFrame: boolean;

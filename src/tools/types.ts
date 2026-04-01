@@ -1,3 +1,4 @@
+import { MIME } from "@/services/DataPipelineService/types";
 import type {
   MimeType,
   TiffImportConfig,
@@ -13,26 +14,20 @@ import type {
 /**
  * Input for combined load + prepare operation
  */
-export type LoadAndPrepareDicomInput = {
-  fileData: ArrayBuffer;
-  fileName: string;
-};
-/**
- * Input for combined load + prepare operation
- */
-export type LoadAndPrepareBasicInput = {
-  fileData: ArrayBuffer;
-  fileName: string;
-  mimeType: MimeType;
-};
-/**
- * Input for combined load + prepare operation
- */
-export type LoadAndPrepareInput = {
-  fileData: ArrayBuffer;
-  dimSpec: TiffImportConfig;
-  fileName: string;
-};
+export type ImportImageInput =
+  | {
+      fileData: ArrayBuffer;
+      fileName: string;
+      mimeType: MimeType;
+      dimSpec: undefined;
+    }
+  | {
+      fileData: ArrayBuffer;
+      fileName: string;
+      mimeType: typeof MIME.TIFF;
+      dimSpec: TiffImportConfig;
+    };
+
 /**
  * Output from load + prepare (ready for storage)
  */

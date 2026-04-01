@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { WorkerScheduler } from "./WorkerScheduler";
 import { TaskPriority, TaskStatus, type TaskMap } from "./types";
+import { MIME } from "../DataPipelineService/types";
 
 // Mock Comlink
 const mockResults: Record<string, unknown> = {
@@ -552,16 +553,12 @@ describe("WorkerScheduler", () => {
       scheduler = new WorkerScheduler({ poolSize: 1 });
 
       const handle = scheduler.dispatch({
-        type: "loadAndPrepare",
+        type: "loadImage",
         payload: {
           fileData: new ArrayBuffer(8),
-          dimSpec: {
-            channels: 1,
-            slices: 1,
-            frames: 1,
-            dimensionOrder: "xytzc",
-          },
+          dimSpec: undefined,
           fileName: "test.png",
+          mimeType: MIME.PNG,
         },
         priority: TaskPriority.NORMAL,
       });
@@ -583,7 +580,7 @@ describe("WorkerScheduler", () => {
       scheduler = new WorkerScheduler({ poolSize: 1 });
 
       const handle = scheduler.dispatch({
-        type: "loadAndPrepare",
+        type: "loadImage",
         payload: {
           fileData: new ArrayBuffer(8),
           dimSpec: {
@@ -593,6 +590,7 @@ describe("WorkerScheduler", () => {
             dimensionOrder: "xytzc",
           },
           fileName: "test.tiff",
+          mimeType: MIME.TIFF,
         },
         priority: TaskPriority.NORMAL,
       });
@@ -609,44 +607,17 @@ describe("WorkerScheduler", () => {
       expect(handle.status).toBe(TaskStatus.COMPLETED);
     });
 
-    it("should route analyzeTiff task and resolve with analysis", async () => {
-      scheduler = new WorkerScheduler({ poolSize: 1 });
-
-      const handle = scheduler.dispatch({
-        type: "analyzeTiff",
-        payload: {
-          fileData: new ArrayBuffer(8),
-        },
-        priority: TaskPriority.NORMAL,
-      });
-
-      const result = await handle.promise;
-
-      expect(result).toEqual(
-        expect.objectContaining({
-          frameCount: 1,
-          isMultiFrame: false,
-          suggestedType: "unknown",
-        }),
-      );
-      expect(handle.status).toBe(TaskStatus.COMPLETED);
-    });
-
     it("should call onComplete callback for data pipeline task types", async () => {
       scheduler = new WorkerScheduler({ poolSize: 1 });
       const onComplete = vi.fn();
 
       const handle = scheduler.dispatch({
-        type: "loadAndPrepare",
+        type: "loadImage",
         payload: {
           fileData: new ArrayBuffer(8),
-          dimSpec: {
-            channels: 1,
-            slices: 1,
-            frames: 1,
-            dimensionOrder: "xytzc",
-          },
+          dimSpec: undefined,
           fileName: "test.png",
+          mimeType: MIME.PNG,
         },
         priority: TaskPriority.NORMAL,
         onComplete,
@@ -663,16 +634,12 @@ describe("WorkerScheduler", () => {
       scheduler = new WorkerScheduler({ poolSize: 1 });
 
       const handle = scheduler.dispatch({
-        type: "loadAndPrepare",
+        type: "loadImage",
         payload: {
           fileData: new ArrayBuffer(8),
+          dimSpec: undefined,
           fileName: "test.png",
-          dimSpec: {
-            channels: 1,
-            slices: 1,
-            frames: 1,
-            dimensionOrder: "xytzc",
-          },
+          mimeType: MIME.PNG,
         },
         priority: TaskPriority.NORMAL,
       });

@@ -37,7 +37,6 @@ export function useUploadPipeline(): UseUploadPipelineReturn {
       options?: UploadOptionswithCallbacks,
     ): Promise<PipelineResult> => {
       setIsUploading(true);
-      console.log("here");
       try {
         // 1. Run the pipeline (workers + IndexDB)
         const result = await pipeline.uploadFiles(files, options);

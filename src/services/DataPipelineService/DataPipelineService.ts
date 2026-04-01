@@ -3,7 +3,7 @@ import type {
   ImageSeriesResult,
   LoadAndPrepareOutput,
 } from "@/tools/types.ts";
-import { STORES, type StorageReference } from "@/types.ts";
+import { STORES } from "@/types.ts";
 import { parseError } from "@/utils.ts";
 import { StorageService } from "../StorageService/StorageService.ts";
 import type { Progress, TaskError } from "../types.ts";
@@ -12,11 +12,8 @@ import { WorkerScheduler } from "../WorkerScheduler/WorkerScheduler.ts";
 import {
   FILE,
   MIME,
-  type FileAnalysisResult,
   type FileInterpretationResult,
-  type FileType,
   type IDataPipelineService,
-  type MimeType,
   type PipelineCancelResult,
   type PipelineResult,
   type PipelineStage,
@@ -31,6 +28,8 @@ import type {
   ImageObject,
   Plane,
 } from "@/state/types.ts";
+import { interpretFiles } from "@/tools/fileHelper.ts";
+import { TiffReader } from "@/tools/TiffReader";
 
 const INITIAL_PROGRESS: Progress = {
   stage: "idle",
@@ -54,11 +53,6 @@ const INITIAL_PROGRESS: Progress = {
  * - Data is fully prepared before entering Redux
  * - Progress is reported at each stage
  * - Operations are cancellable
- *
- * Phase 1 Status: SKELETON
- * - Types and structure defined
- * - Methods stubbed with TODO comments
- * - Ready for Phase 2 implementation
  */
 export class DataPipelineService implements IDataPipelineService {
   private static instance: DataPipelineService | null = null;
@@ -127,8 +121,7 @@ export class DataPipelineService implements IDataPipelineService {
         totalCount: files.length,
         overallProgress: 5,
       });
-      console.log("heer");
-      const interpretationResults = this.interpretFiles(files);
+      const interpretationResults = interpretFiles(files);
       if (this.abortController?.signal.aborted) {
         return { success: false, cancelled: true };
       }
@@ -141,14 +134,20 @@ export class DataPipelineService implements IDataPipelineService {
             interpretationResults.fileResults,
           );
           break;
-
         case FILE.DICOM:
-          imageResults = await this.parseDicomImages(files);
+          imageResults = await this.parseDicomImages(
+            files,
+            interpretationResults.fileResults,
+          );
           break;
         case FILE.CZI:
 
         case FILE.TIFF:
-          imageResults = await this.parseTiffImages(files, options);
+          imageResults = await this.parseTiffImages(
+            files,
+            interpretationResults.fileResults,
+            options,
+          );
           break;
       }
 
@@ -172,7 +171,9 @@ export class DataPipelineService implements IDataPipelineService {
         };
       }
 
-      const storageResult = await this.storeData(imageResults.data.channelData);
+      const storageResult = await this.storeAndAttatch(
+        imageResults.data.channelData,
+      );
 
       if (!storageResult.success) {
         this.updateProgress({ stage: "error" });
@@ -198,23 +199,6 @@ export class DataPipelineService implements IDataPipelineService {
         };
       }
 
-      // -- Stage 4: Build Redux-ready payload
-
-      this.updateProgress({
-        stage: "storing",
-        overallProgress: 90,
-      });
-
-      const channels: Channel[] = imageResults.data.channelData.map(
-        (item, idx) => {
-          const { data: _data, histogram: _histogram, ...rest } = item;
-          return {
-            ...rest,
-            storageReference: storageResult.references[idx],
-          };
-        },
-      );
-
       // Collect results — to be dispatched by the caller
       // (DataPipelineService does NOT dispatch to Redux directly;
       //  it returns data that the React component dispatches)
@@ -235,7 +219,7 @@ export class DataPipelineService implements IDataPipelineService {
             images: imageResults.data.images,
             planes: imageResults.data.planes,
             channelMetas: imageResults.data.channelMetas,
-            channels,
+            channels: storageResult.channels,
           },
         ],
         errors: [],
@@ -254,11 +238,10 @@ export class DataPipelineService implements IDataPipelineService {
     }
   }
 
-  async storeData(
+  async storeAndAttatch(
     channelData: ChannelResult[],
   ): Promise<
-    | { success: false; error: Error }
-    | { success: true; references: StorageReference[] }
+    { success: false; error: Error } | { success: true; channels: Channel[] }
   > {
     const storageItems = channelData.map((channel) => ({
       id: channel.id,
@@ -272,15 +255,27 @@ export class DataPipelineService implements IDataPipelineService {
     }
 
     // -- Stage 4: Build Redux-ready payload
-
+    const refsById = new Map(
+      storageResult.data.map((ref) => [ref.storageId, ref]),
+    );
+    const channels: Channel[] = channelData.map((item) => {
+      const { data: _data, histogram: _histogram, ...rest } = item;
+      return {
+        ...rest,
+        storageReference: refsById.get(rest.id)!,
+      };
+    });
     this.updateProgress({
       stage: "storing",
       overallProgress: 90,
     });
 
-    return { success: true, references: storageResult.data };
+    return { success: true, channels: channels };
   }
-  async parseDicomImages(files: FileList) {
+  async parseDicomImages(
+    files: FileList,
+    fileAnalyses: FileInterpretationResult["fileResults"],
+  ) {
     const taskHandles: Array<{
       fileName: string;
       handle: TaskHandle<LoadAndPrepareOutput>;
@@ -298,10 +293,12 @@ export class DataPipelineService implements IDataPipelineService {
         totalBytes += fileData.byteLength;
 
         const handle = this.scheduler.dispatch({
-          type: "loadAndPrepareDicom",
+          type: "loadImage",
           payload: {
             fileData,
             fileName: file.name,
+            mimeType: fileAnalyses[file.name].mimeType,
+            dimSpec: undefined,
           },
           priority: TaskPriority.HIGH,
           onProgress: (progress) => {
@@ -350,11 +347,12 @@ export class DataPipelineService implements IDataPipelineService {
         totalBytes += fileData.byteLength;
 
         const handle = this.scheduler.dispatch({
-          type: "loadAndPrepareBasic",
+          type: "loadImage",
           payload: {
             fileData,
             fileName: file.name,
             mimeType: fileAnalyses[file.name].mimeType,
+            dimSpec: undefined,
           },
           priority: TaskPriority.HIGH,
           onProgress: (progress) => {
@@ -383,6 +381,7 @@ export class DataPipelineService implements IDataPipelineService {
   }
   async parseTiffImages(
     files: FileList,
+    fileAnalyses: FileInterpretationResult["fileResults"],
     options?: UploadOptionswithCallbacks,
   ): Promise<ReaderResult> {
     const analysisResult = await this.analyzeTiffs(files);
@@ -427,11 +426,12 @@ export class DataPipelineService implements IDataPipelineService {
         totalBytes += fileData.byteLength;
 
         const handle = this.scheduler.dispatch({
-          type: "loadAndPrepare",
+          type: "loadImage",
           payload: {
             fileData,
             dimSpec: tiffConfigs.get(file.name)!,
             fileName: file.name,
+            mimeType: fileAnalyses[file.name].mimeType as typeof MIME.TIFF,
           },
           priority: TaskPriority.HIGH,
           onProgress: (progress) => {
@@ -528,47 +528,7 @@ export class DataPipelineService implements IDataPipelineService {
       data: { imageSeries, channelMetas, images, planes, channelData },
     };
   }
-  // ============================================================
-  // File Analysis
-  // ============================================================
 
-  /**
-   * Analyze files without processing them
-   * Used to determine if dialogs are needed (e.g., TIFF frame interpretation)
-   *
-   * 1. Check file types
-   * 2. For TIFFs, parse header to detect frames
-   * 3. Return analysis results for UI decisions
-   */
-  interpretFiles(files: FileList): FileInterpretationResult {
-    // Phase 1: Return basic analysis
-    const results: FileInterpretationResult["fileResults"] = {};
-    const imageTypeSet = new Set<FileType>();
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const mimeType = this.inferMimeType(file);
-      const imageType = this.inferImageType(file.name);
-      imageTypeSet.add(imageType);
-      if (imageTypeSet.size > 1) {
-        throw new Error(
-          `Input files must be of the same type. Found ${imageTypeSet.entries}`,
-        );
-      }
-
-      const result: FileAnalysisResult = {
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType,
-        imageType,
-      };
-
-      // For TIFF files, analyze in worker to detect multi-frame
-
-      results[file.name] = result;
-    }
-
-    return { imageType: [...imageTypeSet][0], fileResults: results };
-  }
   // ============================================================
   // File Analysis
   // ============================================================
@@ -589,13 +549,9 @@ export class DataPipelineService implements IDataPipelineService {
 
       try {
         const fileData = await file.arrayBuffer();
-        const handle = this.scheduler.dispatch({
-          type: "analyzeTiff",
-          payload: { fileData },
-          priority: TaskPriority.HIGH,
-        });
+        const analyzer = new TiffReader();
+        const tiffResult = await analyzer.analyze(fileData);
 
-        const tiffResult = await handle.promise;
         results.push({ fileName: file.name, ...tiffResult });
       } catch {
         //if analysis fails, treat as regular image
@@ -642,6 +598,7 @@ export class DataPipelineService implements IDataPipelineService {
   cancel(): void {
     if (this.abortController) {
       this.abortController.abort();
+      this.scheduler.cancelAll();
       this.updateProgress({ stage: "cancelled" });
     }
   }
@@ -677,39 +634,6 @@ export class DataPipelineService implements IDataPipelineService {
     };
   }
 
-  private inferMimeType(file: File): MimeType {
-    const type = file.type;
-    if ((Object.values(MIME) as string[]).includes(type)) {
-      return type as MimeType;
-    }
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    switch (ext) {
-      case "png":
-        return MIME.PNG;
-      case "jpg":
-      case "jpeg":
-        return MIME.JPEG;
-      case "tif":
-      case "tiff":
-        return MIME.TIFF;
-      case "dcm":
-        return MIME.DICOM;
-      case "bmp":
-        return MIME.BMP;
-      case "czi":
-        return MIME.CZI;
-      default:
-        return MIME.UNKNOWN;
-    }
-  }
-
-  private inferImageType(fileName: string): FileType {
-    const ext = fileName.split(".").pop()?.toLowerCase();
-    if (ext === "tif" || ext === "tiff") return FILE.TIFF;
-    if (ext === "dcm") return FILE.DICOM;
-    if (ext === "czi") return FILE.CZI;
-    return FILE.BASIC;
-  }
   // ============================================================
   // PRIVATE -- END
   // ============================================================

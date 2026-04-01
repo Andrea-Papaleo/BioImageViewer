@@ -1,31 +1,13 @@
 // src/workers/scheduler/types.ts
 
-import type {
-  LoadAndPrepareBasicInput,
-  LoadAndPrepareDicomInput,
-  LoadAndPrepareInput,
-  LoadAndPrepareOutput,
-} from "@/tools/types";
+import type { ImportImageInput, LoadAndPrepareOutput } from "@/tools/types";
 import type { Progress } from "../types";
-import type {
-  AnalyzeTiffInput,
-  AnalyzeTiffOutput,
-} from "@/tools/TiffReader/types";
 
 export interface TaskMap {
-  loadAndPrepareBasic: {
-    payload: LoadAndPrepareBasicInput;
+  loadImage: {
+    payload: ImportImageInput;
     result: LoadAndPrepareOutput;
   };
-  loadAndPrepareDicom: {
-    payload: LoadAndPrepareDicomInput;
-    result: LoadAndPrepareOutput;
-  };
-  loadAndPrepare: {
-    payload: LoadAndPrepareInput;
-    result: LoadAndPrepareOutput;
-  };
-  analyzeTiff: { payload: AnalyzeTiffInput; result: AnalyzeTiffOutput };
 }
 
 export enum TaskPriority {
